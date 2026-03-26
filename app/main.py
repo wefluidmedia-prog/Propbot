@@ -4,9 +4,11 @@ PropBot — AI Receptionist SaaS for Indian Real Estate Agents.
 FastAPI application entry point.
 """
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -14,6 +16,24 @@ from fastapi.staticfiles import StaticFiles
 from app.config import settings
 from app.db.supabase_client import init_supabase
 from app.routers import webhooks, chat, leads, health
+
+logger = logging.getLogger(__name__)
+
+
+async def _self_ping():
+    """Ping own /health endpoint every 14 minutes to prevent Render free tier spin-down."""
+    if not settings.BASE_URL:
+        logger.warning("BASE_URL not set — self-ping disabled")
+        return
+    url = f"{settings.BASE_URL.rstrip('/')}/health"
+    async with httpx.AsyncClient() as client:
+        while True:
+            await asyncio.sleep(14 * 60)
+            try:
+                resp = await client.get(url, timeout=10)
+                logger.info("Self-ping %s → %s", url, resp.status_code)
+            except Exception as exc:
+                logger.warning("Self-ping failed: %s", exc)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,10 +46,13 @@ async def lifespan(app: FastAPI):
     """Initialize services on startup."""
     if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_KEY:
         init_supabase(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
-        logging.getLogger(__name__).info("Supabase initialized")
+        logger.info("Supabase initialized")
     else:
-        logging.getLogger(__name__).warning("Supabase not configured — running without DB")
+        logger.warning("Supabase not configured — running without DB")
+    # Start self-ping task to keep Render free tier alive
+    ping_task = asyncio.create_task(_self_ping())
     yield
+    ping_task.cancel()
 
 
 app = FastAPI(
