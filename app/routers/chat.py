@@ -6,6 +6,8 @@ Two endpoints:
 2. POST /api/chat/{client_id}/callback — handle "Request Callback" button
 """
 
+import logging
+
 from fastapi import APIRouter, HTTPException
 
 from app.models.chat import ChatRequest, ChatResponse
@@ -14,6 +16,7 @@ from app.services.claude_service import get_chat_response
 from app.services.lead_service import store_callback_request
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 @router.post("/{client_id}", response_model=ChatResponse)
@@ -29,7 +32,8 @@ async def chat_message(client_id: str, req: ChatRequest):
         )
         return ChatResponse(reply=result["text"], visitor_id=result["visitor_id"])
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Chat error: {str(e)}")
+        logger.error("Chat error for client %s: %s", client_id, e)
+        raise HTTPException(status_code=500, detail="An error occurred processing your message")
 
 
 @router.post("/{client_id}/callback")
@@ -48,4 +52,5 @@ async def request_callback(client_id: str, req: CallbackRequest):
             "message": "Callback request received. Agent will call you shortly.",
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Callback error: {str(e)}")
+        logger.error("Callback error for client %s: %s", client_id, e)
+        raise HTTPException(status_code=500, detail="Failed to submit callback request")

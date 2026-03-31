@@ -9,6 +9,7 @@ import smtplib
 import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from html import escape
 
 import httpx
 from app.config import settings
@@ -54,7 +55,7 @@ async def send_lead_alert(client_data: dict, lead_data: dict) -> None:
                     source=source,
                 ),
             )
-            logger.info(f"Email alert sent to {agent_email}")
+            logger.info("Email alert sent")
         except Exception as e:
             logger.error(f"Email alert failed: {e}")
 
@@ -70,7 +71,7 @@ async def send_lead_alert(client_data: dict, lead_data: dict) -> None:
         )
         try:
             await _send_exotel_sms(to=agent_phone, message=sms_text)
-            logger.info(f"SMS alert sent to {agent_phone}")
+            logger.info("SMS alert sent")
         except Exception as e:
             logger.error(f"SMS alert failed: {e}")
 
@@ -86,13 +87,13 @@ async def send_callback_alert(client_data: dict, callback_data: dict) -> None:
         try:
             _send_email(
                 to=agent_email,
-                subject=f"Callback Request: {visitor_name}",
+                subject=f"Callback Request: {escape(visitor_name)}",
                 body=(
                     f"<h2>Callback Request from Website</h2>"
-                    f"<p><strong>Name:</strong> {visitor_name}</p>"
-                    f"<p><strong>Phone:</strong> {visitor_phone}</p>"
-                    f"<p><strong>Preferred time:</strong> {callback_data.get('preferred_time', 'Not specified')}</p>"
-                    f"<p><strong>Context:</strong> {callback_data.get('context', 'No context')}</p>"
+                    f"<p><strong>Name:</strong> {escape(visitor_name)}</p>"
+                    f"<p><strong>Phone:</strong> {escape(visitor_phone)}</p>"
+                    f"<p><strong>Preferred time:</strong> {escape(callback_data.get('preferred_time', 'Not specified'))}</p>"
+                    f"<p><strong>Context:</strong> {escape(callback_data.get('context', 'No context'))}</p>"
                     f"<br><p>Please call them back as soon as possible.</p>"
                 ),
             )
@@ -162,25 +163,25 @@ def _format_lead_email(
 
     return f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px;">
-        <h2 style="color: #2563eb;">New Lead from PropBot AI — {business_name}</h2>
-        <p style="color: #666;">Source: {source.upper()} call</p>
+        <h2 style="color: #2563eb;">New Lead from PropBot AI — {escape(business_name)}</h2>
+        <p style="color: #666;">Source: {escape(source.upper())} call</p>
         <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Name</td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">{caller_name}</td></tr>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">{escape(caller_name)}</td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Phone</td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;"><a href="tel:{caller_phone}">{caller_phone}</a></td></tr>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;"><a href="tel:{escape(caller_phone)}">{escape(caller_phone)}</a></td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Looking for</td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">{property_type}</td></tr>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">{escape(property_type)}</td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Area</td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">{area}</td></tr>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">{escape(area)}</td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Budget</td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">{budget_str}</td></tr>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">{escape(budget_str)}</td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Urgency</td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">{urgency}</td></tr>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">{escape(urgency)}</td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Viewing time</td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">{viewing_time}</td></tr>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">{escape(viewing_time)}</td></tr>
             <tr><td style="padding: 8px; border-bottom: 1px solid #eee; font-weight: bold;">Notes</td>
-                <td style="padding: 8px; border-bottom: 1px solid #eee;">{notes}</td></tr>
+                <td style="padding: 8px; border-bottom: 1px solid #eee;">{escape(notes)}</td></tr>
         </table>
         <p style="margin-top: 16px; color: #059669; font-weight: bold;">Please call this lead back as soon as possible.</p>
         <p style="color: #999; font-size: 12px; margin-top: 24px;">Sent by PropBot AI Receptionist</p>

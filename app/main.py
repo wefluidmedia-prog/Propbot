@@ -62,13 +62,15 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow all origins for the chat widget to work from any domain
+# CORS — allow all origins for the chat widget (embedded on customer sites).
+# allow_credentials=False is required when allow_origins=["*"] per CORS spec.
+# The widget uses no cookies, so credentials are not needed.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 # Routers
