@@ -63,7 +63,7 @@ class VapiEngine(VoiceEngine):
 
         return AgentHandle(
             provider="vapi",
-            assistant_id=data["id"],
+            agent_id=data["id"],
             phone_number=None,
             raw_config=data,
         )

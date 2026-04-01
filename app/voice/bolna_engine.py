@@ -226,13 +226,18 @@ class BolnaEngine(VoiceEngine):
 
     def _convert_tools(self, tools: list[dict], webhook_url: str) -> list[dict]:
         """Convert our agnostic tool definitions to Bolna's format."""
+        from app.config import settings
+
         bolna_tools = []
         for tool in tools:
-            bolna_tools.append({
+            tool_config = {
                 "name": tool["name"],
                 "description": tool["description"],
                 "parameters": tool.get("parameters", {}),
                 "url": webhook_url,
                 "method": "POST",
-            })
+            }
+            if settings.WEBHOOK_SECRET:
+                tool_config["headers"] = {"X-Webhook-Secret": settings.WEBHOOK_SECRET}
+            bolna_tools.append(tool_config)
         return bolna_tools

@@ -6,10 +6,35 @@ Voice calls go through Bolna/Vapi (which handle their own LLM calls).
 Chat widget messages call the LLM directly from our backend.
 """
 
+import asyncio
 import uuid
+from functools import lru_cache
+
 from app.config import settings
 from app.services.knowledge_service import get_knowledge_base
 from app.prompts.system_prompt import build_system_prompt
+
+
+@lru_cache(maxsize=1)
+def _get_openai_client():
+    from openai import AsyncOpenAI
+    return AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+
+
+@lru_cache(maxsize=1)
+def _get_anthropic_client():
+    from anthropic import AsyncAnthropic
+    return AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+
+
+def _load_chat_context(client_id: str, channel: str) -> str:
+    """Load KB and build system prompt (sync — run via to_thread)."""
+    from app.db.supabase_client import get_supabase
+    db = get_supabase()
+    result = db.table("clients").select("*").eq("id", client_id).single().execute()
+    client = result.data
+    kb = client.get("knowledge_base", "")
+    return build_system_prompt(client_id=client_id, knowledge_base=kb, channel=channel)
 
 
 async def get_chat_response(
@@ -28,9 +53,8 @@ async def get_chat_response(
     if not visitor_id:
         visitor_id = str(uuid.uuid4())
 
-    # Load KB and build prompt
-    kb = await get_knowledge_base(client_id)
-    system = build_system_prompt(client_id=client_id, knowledge_base=kb, channel="chat")
+    # Supabase SDK is sync — offload DB + prompt assembly off the event loop
+    system = await asyncio.to_thread(_load_chat_context, client_id, "chat")
 
     # Build message list
     messages = []
@@ -52,15 +76,12 @@ async def get_chat_response(
 
 async def _call_openai(system: str, messages: list[dict]) -> str:
     """Call OpenAI GPT-4o-mini for chat responses."""
-    from openai import OpenAI
+    client = _get_openai_client()
 
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
-
-    # OpenAI expects system message as first message in the list
     oai_messages = [{"role": "system", "content": system}]
     oai_messages.extend(messages)
 
-    response = client.chat.completions.create(
+    response = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=oai_messages,
         max_tokens=500,
@@ -71,10 +92,8 @@ async def _call_openai(system: str, messages: list[dict]) -> str:
 
 async def _call_anthropic(system: str, messages: list[dict]) -> str:
     """Call Claude Sonnet for chat responses."""
-    import anthropic
-
-    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-    response = client.messages.create(
+    client = _get_anthropic_client()
+    response = await client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=500,
         system=system,

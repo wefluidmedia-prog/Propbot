@@ -8,10 +8,11 @@ Two endpoints:
 
 import logging
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from app.models.chat import ChatRequest, ChatResponse
 from app.models.lead import CallbackRequest
+from app.rate_limit import rate_limit_chat, rate_limit_callback
 from app.services.claude_service import get_chat_response
 from app.services.lead_service import store_callback_request
 
@@ -20,8 +21,9 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/{client_id}", response_model=ChatResponse)
-async def chat_message(client_id: str, req: ChatRequest):
+async def chat_message(client_id: str, req: ChatRequest, request: Request):
     """Process a chat message for a client's widget."""
+    rate_limit_chat(request, client_id)
     try:
         history = [{"role": m.role, "content": m.content} for m in req.history]
         result = await get_chat_response(
@@ -37,8 +39,9 @@ async def chat_message(client_id: str, req: ChatRequest):
 
 
 @router.post("/{client_id}/callback")
-async def request_callback(client_id: str, req: CallbackRequest):
+async def request_callback(client_id: str, req: CallbackRequest, request: Request):
     """Handle 'Request Callback' button from chat widget."""
+    rate_limit_callback(request, client_id)
     try:
         await store_callback_request(
             client_id=client_id,
