@@ -199,6 +199,48 @@ async def list_voices():
     return {"voices": get_catalog()}
 
 
+# ─── Shared CSS ──────────────────────────────────────────────────
+
+_SHARED_CSS = """
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; }
+.wizard { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
+.steps { display: flex; gap: 8px; margin-bottom: 24px; }
+.step { flex: 1; text-align: center; padding: 10px; font-size: 13px; font-weight: 500; color: #94a3b8; background: #fff; border-radius: 8px; border: 1px solid #e2e8f0; }
+.step.active { color: #2563eb; border-color: #2563eb; background: #eff6ff; }
+.step.done { color: #059669; border-color: #059669; background: #ecfdf5; }
+.card { background: #fff; padding: 32px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+.card h2 { font-size: 22px; margin-bottom: 6px; }
+.card .subtitle { color: #64748b; font-size: 14px; margin-bottom: 24px; }
+label { display: block; font-size: 13px; font-weight: 500; color: #475569; margin-bottom: 14px; }
+input[type="text"], input[type="email"], input[type="tel"] { display: block; width: 100%; padding: 11px 14px; margin-top: 4px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; }
+input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+.btn-primary { display: block; width: 100%; padding: 14px; margin-top: 20px; background: #2563eb; color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; }
+.btn-primary:hover { background: #1d4ed8; }
+.error { color: #dc2626; font-size: 13px; margin-bottom: 12px; padding: 10px; background: #fef2f2; border-radius: 6px; }
+@media (max-width: 640px) { .card { padding: 20px; } }
+"""
+
+_STEP2_CSS = """
+.voice-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.voice-card { display: block; cursor: pointer; border: 2px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; transition: border-color 0.15s; }
+.voice-card:hover { border-color: #93c5fd; }
+.voice-card input[type="radio"] { display: none; }
+.voice-card:has(input:checked) { border-color: #2563eb; background: #eff6ff; }
+.voice-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.voice-meta { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+.voice-desc { font-size: 13px; color: #475569; }
+.gender-tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
+.tag-f { background: #fce7f3; color: #be185d; }
+.tag-m { background: #dbeafe; color: #1d4ed8; }
+.rec-badge { font-size: 11px; padding: 2px 8px; background: #d1fae5; color: #065f46; border-radius: 10px; }
+.filter-bar { display: flex; gap: 8px; margin-bottom: 16px; }
+.filter-btn { padding: 6px 16px; border: 1px solid #e2e8f0; border-radius: 20px; background: #fff; font-size: 13px; cursor: pointer; color: #64748b; }
+.filter-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+.persona-field { margin-top: 12px; }
+"""
+
+
 # ─── HTML Templates ──────────────────────────────────────────────
 
 STEP1_HTML = """<!DOCTYPE html>
@@ -384,46 +426,4 @@ A: We handle the complete registration and documentation process."></textarea>
 </div>
 </body>
 </html>
-"""
-
-
-# ─── Shared CSS ──────────────────────────────────────────────────
-
-_SHARED_CSS = """
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; }
-.wizard { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
-.steps { display: flex; gap: 8px; margin-bottom: 24px; }
-.step { flex: 1; text-align: center; padding: 10px; font-size: 13px; font-weight: 500; color: #94a3b8; background: #fff; border-radius: 8px; border: 1px solid #e2e8f0; }
-.step.active { color: #2563eb; border-color: #2563eb; background: #eff6ff; }
-.step.done { color: #059669; border-color: #059669; background: #ecfdf5; }
-.card { background: #fff; padding: 32px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
-.card h2 { font-size: 22px; margin-bottom: 6px; }
-.card .subtitle { color: #64748b; font-size: 14px; margin-bottom: 24px; }
-label { display: block; font-size: 13px; font-weight: 500; color: #475569; margin-bottom: 14px; }
-input[type="text"], input[type="email"], input[type="tel"] { display: block; width: 100%; padding: 11px 14px; margin-top: 4px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; }
-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
-.btn-primary { display: block; width: 100%; padding: 14px; margin-top: 20px; background: #2563eb; color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; }
-.btn-primary:hover { background: #1d4ed8; }
-.error { color: #dc2626; font-size: 13px; margin-bottom: 12px; padding: 10px; background: #fef2f2; border-radius: 6px; }
-@media (max-width: 640px) { .card { padding: 20px; } }
-"""
-
-_STEP2_CSS = """
-.voice-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
-.voice-card { display: block; cursor: pointer; border: 2px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; transition: border-color 0.15s; }
-.voice-card:hover { border-color: #93c5fd; }
-.voice-card input[type="radio"] { display: none; }
-.voice-card:has(input:checked) { border-color: #2563eb; background: #eff6ff; }
-.voice-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.voice-meta { font-size: 12px; color: #64748b; margin-bottom: 4px; }
-.voice-desc { font-size: 13px; color: #475569; }
-.gender-tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
-.tag-f { background: #fce7f3; color: #be185d; }
-.tag-m { background: #dbeafe; color: #1d4ed8; }
-.rec-badge { font-size: 11px; padding: 2px 8px; background: #d1fae5; color: #065f46; border-radius: 10px; }
-.filter-bar { display: flex; gap: 8px; margin-bottom: 16px; }
-.filter-btn { padding: 6px 16px; border: 1px solid #e2e8f0; border-radius: 20px; background: #fff; font-size: 13px; cursor: pointer; color: #64748b; }
-.filter-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
-.persona-field { margin-top: 12px; }
 """
