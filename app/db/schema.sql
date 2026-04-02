@@ -90,6 +90,22 @@ CREATE TABLE callback_requests (
 CREATE INDEX idx_callback_requests_client_id ON callback_requests(client_id);
 
 -- =========================
+-- API KEYS (per-client auth)
+-- =========================
+CREATE TABLE api_keys (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    key_hash TEXT NOT NULL,
+    label TEXT DEFAULT 'default',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    last_used_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_api_keys_key_hash ON api_keys(key_hash);
+CREATE INDEX idx_api_keys_client_id ON api_keys(client_id);
+
+-- =========================
 -- Auto-update updated_at
 -- =========================
 CREATE OR REPLACE FUNCTION update_updated_at()

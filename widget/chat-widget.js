@@ -4,7 +4,11 @@
  * Embed on any website with:
  * <script src="https://propbot.onrender.com/static/chat-widget.js"
  *         data-client-id="YOUR_CLIENT_ID"
- *         data-api-url="https://propbot.onrender.com"></script>
+ *         data-api-url="https://propbot.onrender.com"
+ *         data-persona-name="Priya"
+ *         data-subtitle="Property Assistant"
+ *         data-accent-color="#2563eb"
+ *         data-welcome-message="Namaste! Main aapki kya madad kar sakti hoon?"></script>
  */
 (function () {
   "use strict";
@@ -13,6 +17,12 @@
   var script = document.currentScript;
   var CLIENT_ID = script.getAttribute("data-client-id") || "";
   var API_BASE = (script.getAttribute("data-api-url") || "").replace(/\/$/, "");
+  var PERSONA = script.getAttribute("data-persona-name") || "Priya";
+  var SUBTITLE = script.getAttribute("data-subtitle") || "Property Assistant";
+  var ACCENT = script.getAttribute("data-accent-color") || "#2563eb";
+  var ACCENT_DARK = adjustColor(ACCENT, -20);
+  var WELCOME = script.getAttribute("data-welcome-message") ||
+    "Namaste! Main aapki kya madad kar sakti hoon? Property ke baare mein kuch bhi poochiye.";
 
   if (!CLIENT_ID) {
     console.error("PropBot: data-client-id is required");
@@ -33,6 +43,14 @@
 
   function generateId() {
     return "v_" + Math.random().toString(36).substring(2, 15);
+  }
+
+  function adjustColor(hex, amount) {
+    hex = hex.replace("#", "");
+    var r = Math.max(0, Math.min(255, parseInt(hex.substring(0, 2), 16) + amount));
+    var g = Math.max(0, Math.min(255, parseInt(hex.substring(2, 4), 16) + amount));
+    var b = Math.max(0, Math.min(255, parseInt(hex.substring(4, 6), 16) + amount));
+    return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
   }
 
   // Inject CSS
@@ -79,7 +97,7 @@
   callbackSubmit.addEventListener("click", submitCallback);
 
   // Add welcome message
-  addMessage("assistant", "Namaste! Main aapki kya madad kar sakti hoon? Property ke baare mein kuch bhi poochiye.");
+  addMessage("assistant", WELCOME);
 
   function togglePanel() {
     isOpen = !isOpen;
@@ -121,7 +139,6 @@
     sendBtn.disabled = true;
     addTypingIndicator();
 
-    // Build history for API (exclude last user message, it's sent separately)
     var apiHistory = history.slice(0, -1).map(function (m) {
       return { role: m.role, content: m.content };
     });
@@ -167,7 +184,6 @@
       return;
     }
 
-    // Get last few messages as context
     var context = history
       .slice(-4)
       .map(function (m) {
@@ -205,7 +221,14 @@
       });
   }
 
+  function esc(str) {
+    var d = document.createElement("div");
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
   function getHtml() {
+    var initial = PERSONA.charAt(0).toUpperCase();
     return (
       '<button id="propbot-fab" aria-label="Chat with us">' +
       '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>' +
@@ -213,8 +236,8 @@
       '<div id="propbot-panel" style="display:none">' +
       '<div id="propbot-header">' +
       '<div id="propbot-header-info">' +
-      '<div id="propbot-avatar">P</div>' +
-      "<div><strong>Priya</strong><br><small>AI Assistant</small></div>" +
+      '<div id="propbot-avatar">' + esc(initial) + "</div>" +
+      "<div><strong>" + esc(PERSONA) + "</strong><br><small>" + esc(SUBTITLE) + "</small></div>" +
       "</div>" +
       '<div id="propbot-header-actions">' +
       '<button id="propbot-callback-btn" title="Request Callback">&#128222;</button>' +
@@ -245,13 +268,13 @@
   function getCss() {
     return (
       "#propbot-widget{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;font-size:14px;}" +
-      "#propbot-fab{position:fixed;bottom:20px;right:20px;width:56px;height:56px;border-radius:50%;background:#2563eb;color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.2);z-index:9999;transition:transform .2s;}" +
+      "#propbot-fab{position:fixed;bottom:20px;right:20px;width:56px;height:56px;border-radius:50%;background:" + ACCENT + ";color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.2);z-index:9999;transition:transform .2s;}" +
       "#propbot-fab:hover{transform:scale(1.1);}" +
       "#propbot-panel{position:fixed;bottom:20px;right:20px;width:380px;max-width:calc(100vw - 24px);height:560px;max-height:calc(100vh - 40px);border-radius:16px;background:#fff;box-shadow:0 8px 30px rgba(0,0,0,0.15);z-index:9999;flex-direction:column;overflow:hidden;}" +
       "@media(max-width:767px){#propbot-panel{width:100%;height:100%;max-width:100%;max-height:100%;bottom:0;right:0;border-radius:0;}}" +
-      "#propbot-header{background:#2563eb;color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;}" +
+      "#propbot-header{background:" + ACCENT + ";color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;}" +
       "#propbot-header-info{display:flex;align-items:center;gap:10px;}" +
-      "#propbot-avatar{width:36px;height:36px;border-radius:50%;background:#1d4ed8;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:16px;}" +
+      "#propbot-avatar{width:36px;height:36px;border-radius:50%;background:" + ACCENT_DARK + ";display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:16px;}" +
       "#propbot-header small{opacity:0.8;font-size:12px;}" +
       "#propbot-header-actions{display:flex;gap:4px;}" +
       "#propbot-header-actions button{background:none;border:none;color:#fff;font-size:20px;cursor:pointer;padding:4px 8px;border-radius:4px;}" +
@@ -261,17 +284,17 @@
       "#propbot-callback-form input{width:100%;padding:8px 10px;margin-bottom:6px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;box-sizing:border-box;}" +
       ".propbot-cb-actions{display:flex;gap:8px;margin-top:4px;}" +
       ".propbot-cb-actions button{flex:1;padding:8px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;}" +
-      "#propbot-callback-submit{background:#2563eb;color:#fff;}" +
+      "#propbot-callback-submit{background:" + ACCENT + ";color:#fff;}" +
       "#propbot-callback-cancel{background:#e5e7eb;color:#374151;}" +
       "#propbot-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;}" +
       ".propbot-msg{max-width:80%;padding:10px 14px;border-radius:12px;line-height:1.4;word-wrap:break-word;white-space:pre-wrap;}" +
-      ".propbot-msg-user{align-self:flex-end;background:#2563eb;color:#fff;border-bottom-right-radius:4px;}" +
+      ".propbot-msg-user{align-self:flex-end;background:" + ACCENT + ";color:#fff;border-bottom-right-radius:4px;}" +
       ".propbot-msg-assistant{align-self:flex-start;background:#f3f4f6;color:#1f2937;border-bottom-left-radius:4px;}" +
       ".propbot-typing{opacity:0.6;}" +
       "#propbot-input-area{display:flex;padding:12px;gap:8px;border-top:1px solid #e5e7eb;}" +
       "#propbot-input{flex:1;padding:10px 14px;border:1px solid #d1d5db;border-radius:20px;outline:none;font-size:14px;}" +
-      "#propbot-input:focus{border-color:#2563eb;}" +
-      "#propbot-send{width:40px;height:40px;border-radius:50%;background:#2563eb;color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}" +
+      "#propbot-input:focus{border-color:" + ACCENT + ";}" +
+      "#propbot-send{width:40px;height:40px;border-radius:50%;background:" + ACCENT + ";color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}" +
       "#propbot-send:disabled{opacity:0.5;cursor:not-allowed;}"
     );
   }

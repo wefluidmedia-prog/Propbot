@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.db.supabase_client import init_supabase
-from app.routers import webhooks, chat, leads, health
+from app.routers import webhooks, chat, leads, health, dashboard
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +69,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PATCH"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
@@ -78,6 +78,7 @@ app.include_router(health.router)
 app.include_router(webhooks.router, prefix="/api/webhooks")
 app.include_router(chat.router, prefix="/api/chat")
 app.include_router(leads.router, prefix="/api/leads")
+app.include_router(dashboard.router, prefix="/dashboard")
 
 # Serve chat widget static files
 app.mount("/static", StaticFiles(directory="widget"), name="static")

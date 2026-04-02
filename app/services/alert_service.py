@@ -5,6 +5,7 @@ Email: Gmail SMTP with app password
 SMS: Exotel SMS API
 """
 
+import asyncio
 import smtplib
 import logging
 from email.mime.text import MIMEText
@@ -38,7 +39,8 @@ async def send_lead_alert(client_data: dict, lead_data: dict) -> None:
     # Email
     if agent_email and settings.SMTP_EMAIL:
         try:
-            _send_email(
+            await asyncio.to_thread(
+                _send_email,
                 to=agent_email,
                 subject=f"New Lead: {caller_name} — {property_type} {area}",
                 body=_format_lead_email(
@@ -85,7 +87,8 @@ async def send_callback_alert(client_data: dict, callback_data: dict) -> None:
 
     if agent_email and settings.SMTP_EMAIL:
         try:
-            _send_email(
+            await asyncio.to_thread(
+                _send_email,
                 to=agent_email,
                 subject=f"Callback Request: {escape(visitor_name)}",
                 body=(

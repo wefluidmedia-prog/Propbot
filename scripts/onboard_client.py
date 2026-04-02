@@ -32,6 +32,7 @@ from app.db.supabase_client import init_supabase, get_supabase
 from app.voice.factory import get_voice_engine
 from app.voice.base import AgentConfig, VOICE_TOOLS
 from app.prompts.system_prompt import build_system_prompt_from_config
+from app.auth import create_api_key
 
 
 async def onboard(args):
@@ -105,8 +106,14 @@ async def onboard(args):
         "first_message": first_message,
     }).eq("id", client_id).execute()
 
+    # Generate API key for this client
+    print("[6/7] Generating API key...")
+    raw_api_key = create_api_key(client_id, label="onboarding")
+    print(f"       API Key: {raw_api_key}")
+    print(f"       (Save this — it cannot be retrieved again!)")
+
     # Print summary
-    print(f"\n[6/6] Setup complete!")
+    print(f"\n[7/7] Setup complete!")
     print(f"\n{'='*60}")
     print(f"  CLIENT ONBOARDING COMPLETE")
     print(f"{'='*60}")
@@ -121,7 +128,11 @@ async def onboard(args):
     print(f"\n  CHAT WIDGET EMBED CODE:")
     print(f'  <script src="{settings.BASE_URL}/static/chat-widget.js"')
     print(f'          data-client-id="{client_id}"')
-    print(f'          data-api-url="{settings.BASE_URL}"></script>')
+    print(f'          data-api-url="{settings.BASE_URL}"')
+    print(f'          data-persona-name="{args.persona_name}"')
+    print(f'          data-subtitle="Property Assistant"></script>')
+    print(f"\n  API KEY (for leads dashboard):")
+    print(f"  {raw_api_key}")
     print(f"{'='*60}")
     print(f"\n  NEXT STEPS:")
     print(f"  1. Test voice: Call {args.exotel_number}")
