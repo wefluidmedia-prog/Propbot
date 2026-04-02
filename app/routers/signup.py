@@ -58,16 +58,19 @@ async def signup_step1(request: Request):
     # If already signed up, redirect to appropriate step
     client_id = _get_client_from_session(request)
     if client_id:
-        db = get_supabase()
-        result = db.table("clients").select("onboarding_step").eq("id", client_id).single().execute()
-        if result.data:
-            step = result.data.get("onboarding_step", 0)
-            if step >= 3:
-                return RedirectResponse("/dashboard", status_code=302)
-            elif step == 2:
-                return RedirectResponse("/signup/step3", status_code=302)
-            elif step == 1:
-                return RedirectResponse("/signup/step2", status_code=302)
+        try:
+            db = get_supabase()
+            result = db.table("clients").select("onboarding_step").eq("id", client_id).single().execute()
+            if result.data:
+                step = result.data.get("onboarding_step") or 0
+                if step >= 3:
+                    return RedirectResponse("/dashboard", status_code=302)
+                elif step == 2:
+                    return RedirectResponse("/signup/step3", status_code=302)
+                elif step == 1:
+                    return RedirectResponse("/signup/step2", status_code=302)
+        except Exception:
+            pass  # If DB query fails (e.g. column missing), just show the form
     return HTMLResponse(STEP1_HTML)
 
 
