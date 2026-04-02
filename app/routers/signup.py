@@ -89,25 +89,39 @@ async def signup_step1_submit(request: Request):
 
     # Check if email already exists
     db = get_supabase()
-    existing = db.table("clients").select("id, onboarding_step").eq("agent_email", agent_email).limit(1).execute()
+    try:
+        existing = db.table("clients").select("id").eq("agent_email", agent_email).limit(1).execute()
+    except Exception as e:
+        logger.error("DB error checking email: %s", e)
+        return HTMLResponse(STEP1_HTML.replace("<!-- ERROR -->", '<p class="error">Database error. Please try again.</p>'))
+
     if existing.data:
         # Resume existing signup
         client_id = existing.data[0]["id"]
-        step = existing.data[0].get("onboarding_step", 0)
-        response = RedirectResponse(f"/signup/step2" if step < 2 else f"/signup/step3" if step < 3 else "/dashboard", status_code=302)
+        response = RedirectResponse("/signup/step2", status_code=302)
         _set_session_cookie(response, client_id)
         return response
 
-    # Create new client
-    result = db.table("clients").insert({
-        "business_name": business_name,
-        "agent_name": agent_name,
-        "agent_email": agent_email,
-        "agent_phone": agent_phone,
-        "city": city,
-        "onboarding_step": 1,
-        "subscription_status": "trial",
-    }).execute()
+    # Create new client — try with new columns, fall back to core if migration not applied
+    try:
+        result = db.table("clients").insert({
+            "business_name": business_name,
+            "agent_name": agent_name,
+            "agent_email": agent_email,
+            "agent_phone": agent_phone,
+            "city": city,
+            "onboarding_step": 1,
+            "subscription_status": "trial",
+        }).execute()
+    except Exception:
+        # Migration may not have been applied — insert without new columns
+        result = db.table("clients").insert({
+            "business_name": business_name,
+            "agent_name": agent_name,
+            "agent_email": agent_email,
+            "agent_phone": agent_phone,
+            "subscription_status": "trial",
+        }).execute()
 
     client_id = result.data[0]["id"]
     logger.info("New signup: %s (%s)", business_name, client_id)
