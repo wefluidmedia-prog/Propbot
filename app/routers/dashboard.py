@@ -231,6 +231,10 @@ async def get_my_stats(client_id: str = Depends(_get_client_id_from_session)):
         s = l.get("status", "new")
         status_counts[s] = status_counts.get(s, 0) + 1
 
+    convos = db.table("conversations").select("created_at").eq("client_id", client_id).execute()
+    all_convos = convos.data or []
+    calls_this_month = len([c for c in all_convos if c.get("created_at", "")[:7] == now.strftime("%Y-%m")])
+
     return {
         "total_leads": len(all_leads),
         "this_month": len(this_month),
@@ -239,6 +243,8 @@ async def get_my_stats(client_id: str = Depends(_get_client_id_from_session)):
         "contacted": status_counts.get("contacted", 0),
         "qualified": status_counts.get("qualified", 0),
         "converted": status_counts.get("converted", 0),
+        "total_calls": len(all_convos),
+        "calls_this_month": calls_this_month,
     }
 
 
@@ -255,6 +261,24 @@ async def get_my_callbacks(client_id: str = Depends(_get_client_id_from_session)
         .execute()
     )
     return {"callbacks": result.data, "count": len(result.data)}
+
+
+@router.get("/api/conversations")
+async def get_my_conversations(
+    client_id: str = Depends(_get_client_id_from_session),
+    limit: int = Query(default=50, le=200),
+):
+    """Get call/chat history for the logged-in client."""
+    db = get_supabase()
+    result = (
+        db.table("conversations")
+        .select("id, source, call_id, transcript, recording_url, duration_seconds, ended_reason, language_detected, created_at, lead_id")
+        .eq("client_id", client_id)
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return {"conversations": result.data, "count": len(result.data)}
 
 
 @router.get("/api/embed-code")
@@ -360,9 +384,29 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .empty-state { text-align: center; padding: 60px 20px; color: #94a3b8; }
 .empty-state h3 { margin-bottom: 8px; color: #64748b; }
 
+/* Calls Table */
+.calls-table { width: 100%; background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); overflow: hidden; }
+.calls-table table { width: 100%; border-collapse: collapse; }
+.calls-table th { text-align: left; padding: 12px 16px; font-size: 12px; font-weight: 600; color: #64748b; background: #f8fafc; text-transform: uppercase; letter-spacing: 0.5px; }
+.calls-table td { padding: 12px 16px; font-size: 14px; border-top: 1px solid #f1f5f9; vertical-align: top; }
+.calls-table tr:hover td { background: #f8fafc; }
+.calls-table tr.expanded td { background: #f0f4ff; }
+.duration-badge { display: inline-block; padding: 2px 8px; background: #f1f5f9; border-radius: 10px; font-size: 12px; color: #475569; }
+.source-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+.source-voice { background: #dbeafe; color: #1d4ed8; }
+.source-chat { background: #d1fae5; color: #065f46; }
+.btn-expand { padding: 4px 10px; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; font-size: 12px; cursor: pointer; color: #475569; }
+.btn-expand:hover { background: #f1f5f9; }
+.transcript-row td { padding: 0 16px 16px; }
+.transcript-box { background: #1e293b; color: #e2e8f0; padding: 16px; border-radius: 8px; font-size: 13px; font-family: monospace; line-height: 1.6; max-height: 300px; overflow-y: auto; white-space: pre-wrap; }
+.audio-player { margin-top: 10px; }
+.audio-player audio { width: 100%; border-radius: 6px; }
+.no-recording { color: #94a3b8; font-size: 13px; font-style: italic; }
+
 /* Mobile */
 @media (max-width: 768px) {
   .leads-table { overflow-x: auto; }
+  .calls-table { overflow-x: auto; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .tabs { overflow-x: auto; }
   .header { flex-direction: column; gap: 12px; align-items: flex-start; }
@@ -379,6 +423,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
   var profile = null;
   var stats = null;
   var leads = [];
+  var conversations = [];
   var activeTab = 'leads';
 
   if (!loggedIn) {
@@ -429,10 +474,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
       fetch('/dashboard/api/me').then(function(r) { return r.ok ? r.json() : Promise.reject(); }),
       fetch('/dashboard/api/stats').then(function(r) { return r.ok ? r.json() : Promise.reject(); }),
       fetch('/dashboard/api/leads').then(function(r) { return r.ok ? r.json() : Promise.reject(); }),
+      fetch('/dashboard/api/conversations').then(function(r) { return r.ok ? r.json() : {conversations: []}; }),
     ]).then(function(results) {
       profile = results[0];
       stats = results[1];
       leads = results[2].leads || [];
+      conversations = results[3].conversations || [];
       render();
     }).catch(function() {
       // Session expired
@@ -454,9 +501,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
     // Stats
     html +=
       '<div class="stats-grid">' +
-        statCard('Total Leads', stats.total_leads, 'blue') +
-        statCard('This Month', stats.this_month, 'blue') +
-        statCard('New', stats.new, 'orange') +
+        statCard('Total Calls', stats.total_calls, 'blue') +
+        statCard('Calls This Month', stats.calls_this_month, 'blue') +
+        statCard('Total Leads', stats.total_leads, 'orange') +
         statCard('Converted', stats.converted, 'green') +
       '</div>';
 
@@ -464,6 +511,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
     html +=
       '<div class="tabs">' +
         tabBtn('leads', 'Leads') +
+        tabBtn('calls', 'Call History') +
         tabBtn('embed', 'Widget Code') +
       '</div>';
 
@@ -488,6 +536,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
     var el = document.getElementById('tab-content');
     if (activeTab === 'leads') {
       renderLeads(el);
+    } else if (activeTab === 'calls') {
+      renderCalls(el);
     } else if (activeTab === 'embed') {
       renderEmbed(el);
     }
@@ -536,6 +586,71 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
           // Update local data
           leads.forEach(function(l) { if (l.id === leadId) l.status = newStatus; });
         }).catch(function() { alert('Failed to update status'); });
+      });
+    });
+  }
+
+  function renderCalls(el) {
+    if (!conversations.length) {
+      el.innerHTML = '<div class="empty-state"><h3>No calls yet</h3><p>Call recordings and transcripts will appear here after your first AI-handled call.</p></div>';
+      return;
+    }
+    var html = '<div class="calls-table"><table><thead><tr>' +
+      '<th>Date &amp; Time</th><th>Type</th><th>Duration</th><th>Ended Reason</th><th>Recording</th><th></th>' +
+      '</tr></thead><tbody id="calls-tbody">';
+    conversations.forEach(function(c, i) {
+      var date = c.created_at ? new Date(c.created_at).toLocaleString('en-IN', {day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '-';
+      var dur = c.duration_seconds ? Math.floor(c.duration_seconds/60) + 'm ' + (c.duration_seconds%60) + 's' : '-';
+      var reason = esc(c.ended_reason || '-');
+      var src = c.source || 'voice';
+      var srcBadge = '<span class="source-badge source-' + src + '">' + src.toUpperCase() + '</span>';
+      var hasRecording = !!c.recording_url;
+      var hasTranscript = !!c.transcript;
+      var recCell = hasRecording
+        ? '<a href="' + esc(c.recording_url) + '" target="_blank" style="color:#2563eb;font-size:13px;">Open Audio</a>'
+        : '<span class="no-recording">No recording</span>';
+      var expandBtn = (hasTranscript || hasRecording)
+        ? '<button class="btn-expand" data-idx="' + i + '">View</button>'
+        : '';
+      html += '<tr id="call-row-' + i + '">' +
+        '<td>' + date + '</td>' +
+        '<td>' + srcBadge + '</td>' +
+        '<td><span class="duration-badge">' + dur + '</span></td>' +
+        '<td>' + reason + '</td>' +
+        '<td>' + recCell + '</td>' +
+        '<td>' + expandBtn + '</td>' +
+        '</tr>';
+    });
+    html += '</tbody></table></div>';
+    el.innerHTML = html;
+
+    el.querySelectorAll('.btn-expand').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var idx = parseInt(this.dataset.idx);
+        var c = conversations[idx];
+        var existingDetail = document.getElementById('call-detail-' + idx);
+        if (existingDetail) {
+          existingDetail.remove();
+          this.textContent = 'View';
+          document.getElementById('call-row-' + idx).classList.remove('expanded');
+          return;
+        }
+        this.textContent = 'Hide';
+        document.getElementById('call-row-' + idx).classList.add('expanded');
+        var detailRow = document.createElement('tr');
+        detailRow.id = 'call-detail-' + idx;
+        detailRow.className = 'transcript-row';
+        var inner = '<td colspan="6">';
+        if (c.recording_url) {
+          inner += '<div class="audio-player"><audio controls preload="none"><source src="' + esc(c.recording_url) + '">Your browser does not support audio.</audio></div>';
+        }
+        if (c.transcript) {
+          inner += '<div class="transcript-box" style="margin-top:' + (c.recording_url ? '12' : '0') + 'px">' + esc(c.transcript) + '</div>';
+        }
+        inner += '</td>';
+        detailRow.innerHTML = inner;
+        var callRow = document.getElementById('call-row-' + idx);
+        callRow.parentNode.insertBefore(detailRow, callRow.nextSibling);
       });
     });
   }
