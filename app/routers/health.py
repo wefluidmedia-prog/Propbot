@@ -184,7 +184,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
             <li>Auto lead capture + alerts</li>
             <li>Dashboard with recordings</li>
             <li>Hindi + English support</li>
-            <li>Email + SMS notifications</li>
+            <li>Email notifications for every lead</li>
             <li>Choose male or female voice</li>
         </ul>
         <a href="/signup" class="btn-price">Start Free Trial</a>
