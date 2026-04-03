@@ -36,3 +36,4 @@ htmlcov/
 
 # Claude Code
 .claude/
+test_call_transcript*.txt
