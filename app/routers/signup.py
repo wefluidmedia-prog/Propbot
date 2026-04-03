@@ -1,496 +1,446 @@
 """
-Self-serve client signup.
+Self-serve signup wizard — 3-step onboarding flow.
 
-GET  /signup  → polished signup HTML page
-POST /signup  → create account in Supabase, send welcome email
+Step 1: Business details → creates client row
+Step 2: Choose voice → saves voice selection
+Step 3: Property listings → saves KB, provisions Bolna agent, redirects to dashboard
 """
 
-import asyncio
 import logging
+import time
+import hmac
+import hashlib
 
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import APIRouter, Request, HTTPException
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.config import settings
 from app.db.supabase_client import get_supabase
+from app.voice.voice_catalog import get_catalog
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+def _set_session_cookie(response, client_id: str):
+    """Set session cookie after signup (same as dashboard auth)."""
+    secret = (settings.WEBHOOK_SECRET or "propbot-default-secret").encode()
+    ts = int(time.time())
+    sig = hmac.new(secret, f"{client_id}:{ts}".encode(), hashlib.sha256).hexdigest()[:32]
+    token = f"{client_id}:{ts}:{sig}"
+    response.set_cookie("propbot_session", token, max_age=7 * 24 * 3600, httponly=True, samesite="lax")
+
+
+def _get_client_from_session(request: Request) -> str | None:
+    """Get client_id from session cookie, or None."""
+    token = request.cookies.get("propbot_session")
+    if not token:
+        return None
+    try:
+        client_id, ts_str, sig = token.split(":")
+        ts = int(ts_str)
+        if time.time() - ts > 7 * 24 * 3600:
+            return None
+        secret = (settings.WEBHOOK_SECRET or "propbot-default-secret").encode()
+        expected = hmac.new(secret, f"{client_id}:{ts}".encode(), hashlib.sha256).hexdigest()[:32]
+        if hmac.compare_digest(sig, expected):
+            return client_id
+    except (ValueError, AttributeError):
+        pass
+    return None
+
+
+# ─── Step 1: Business Details ────────────────────────────────────
+
 @router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
-async def signup_page():
-    return HTMLResponse(SIGNUP_HTML)
+async def signup_step1(request: Request):
+    # If already signed up, redirect to appropriate step
+    client_id = _get_client_from_session(request)
+    if client_id:
+        try:
+            db = get_supabase()
+            result = db.table("clients").select("onboarding_step").eq("id", client_id).single().execute()
+            if result.data:
+                step = result.data.get("onboarding_step") or 0
+                if step >= 3:
+                    return RedirectResponse("/dashboard", status_code=302)
+                elif step == 2:
+                    return RedirectResponse("/signup/step3", status_code=302)
+                elif step == 1:
+                    return RedirectResponse("/signup/step2", status_code=302)
+        except Exception:
+            pass  # If DB query fails (e.g. column missing), just show the form
+    return HTMLResponse(STEP1_HTML)
 
 
 @router.post("")
 @router.post("/")
-async def create_account(request: Request):
-    body = await request.json()
+async def signup_step1_submit(request: Request):
+    form = await request.form()
+    business_name = str(form.get("business_name", "")).strip()
+    agent_name = str(form.get("agent_name", "")).strip()
+    agent_email = str(form.get("agent_email", "")).strip()
+    agent_phone = str(form.get("agent_phone", "")).strip()
+    city = str(form.get("city", "")).strip()
 
-    # Validate required fields
-    required = {
-        "business_name": "Business name",
-        "agent_name": "Your name",
-        "agent_email": "Email address",
-        "agent_phone": "Phone number",
-        "city": "City",
-    }
-    for field, label in required.items():
-        if not str(body.get(field, "")).strip():
-            return JSONResponse({"error": f"{label} is required."}, status_code=400)
+    if not all([business_name, agent_name, agent_email, agent_phone]):
+        return HTMLResponse(STEP1_HTML.replace("<!-- ERROR -->", '<p class="error">Please fill all required fields.</p>'))
 
-    email = body["agent_email"].strip().lower()
-    phone = body["agent_phone"].strip()
+    # Check if email already exists
+    db = get_supabase()
+    try:
+        existing = db.table("clients").select("id").eq("agent_email", agent_email).limit(1).execute()
+    except Exception as e:
+        logger.error("DB error checking email: %s", e)
+        return HTMLResponse(STEP1_HTML.replace("<!-- ERROR -->", '<p class="error">Database error. Please try again.</p>'))
 
-    # Basic phone normalisation — add +91 if bare 10-digit number
-    if phone.isdigit() and len(phone) == 10:
-        phone = f"+91{phone}"
+    if existing.data:
+        # Resume existing signup
+        client_id = existing.data[0]["id"]
+        response = RedirectResponse("/signup/step2", status_code=302)
+        _set_session_cookie(response, client_id)
+        return response
+
+    # Create new client — try with new columns, fall back to core if migration not applied
+    try:
+        result = db.table("clients").insert({
+            "business_name": business_name,
+            "agent_name": agent_name,
+            "agent_email": agent_email,
+            "agent_phone": agent_phone,
+            "city": city,
+            "onboarding_step": 1,
+            "subscription_status": "trial",
+        }).execute()
+    except Exception:
+        # Migration may not have been applied — insert without new columns
+        result = db.table("clients").insert({
+            "business_name": business_name,
+            "agent_name": agent_name,
+            "agent_email": agent_email,
+            "agent_phone": agent_phone,
+            "subscription_status": "trial",
+        }).execute()
+
+    client_id = result.data[0]["id"]
+    logger.info("New signup: %s (%s)", business_name, client_id)
+
+    response = RedirectResponse("/signup/step2", status_code=302)
+    _set_session_cookie(response, client_id)
+    return response
+
+
+# ─── Step 2: Choose Voice ────────────────────────────────────────
+
+@router.get("/step2", response_class=HTMLResponse)
+async def signup_step2(request: Request):
+    client_id = _get_client_from_session(request)
+    if not client_id:
+        return RedirectResponse("/signup", status_code=302)
+    return HTMLResponse(_build_step2_html())
+
+
+@router.post("/step2")
+async def signup_step2_submit(request: Request):
+    client_id = _get_client_from_session(request)
+    if not client_id:
+        return RedirectResponse("/signup", status_code=302)
+
+    form = await request.form()
+    voice_id = str(form.get("voice_id", "")).strip()
+    persona_name = str(form.get("persona_name", "")).strip() or "Priya"
+    voice_gender = str(form.get("voice_gender", "female")).strip()
+
+    # Find voice name from catalog
+    from app.voice.voice_catalog import get_voice_by_id
+    voice = get_voice_by_id(voice_id)
+    voice_name = voice["name"] if voice else persona_name
 
     db = get_supabase()
-
-    # Duplicate email check
-    existing = db.table("clients").select("id").eq("agent_email", email).limit(1).execute()
-    if existing.data:
-        return JSONResponse(
-            {"error": "This email is already registered. Please log in to your dashboard."},
-            status_code=409,
-        )
-
-    # Build default first message
-    persona_name = "Priya"
-    first_message = (
-        f"Namaste! {body['business_name'].strip()} mein aapka swagat hai. "
-        f"Main {persona_name} hoon, aapki kya madad kar sakti hoon?"
-    )
-
-    client_data = {
-        "business_name": body["business_name"].strip(),
-        "agent_name": body["agent_name"].strip(),
-        "agent_email": email,
-        "agent_phone": phone,
-        "city": body.get("city", "").strip(),
-        "specialty": body.get("specialty", "").strip(),
-        "subscription_status": "trial",
+    db.table("clients").update({
+        "voice_id": voice_id,
+        "voice_gender": voice_gender,
         "assistant_persona_name": persona_name,
-        "voice_gender": "female",
-        "voice_id": "",
-        "first_message": first_message,
-    }
+        "onboarding_step": 2,
+    }).eq("id", client_id).execute()
 
-    result = db.table("clients").insert(client_data).execute()
-    client_id = result.data[0]["id"]
-    logger.info(f"New signup: {client_id} — {email}")
-
-    # Send welcome email (best-effort, non-blocking)
-    if settings.SMTP_EMAIL:
-        asyncio.create_task(
-            _send_welcome_email(
-                email=email,
-                agent_name=body["agent_name"].strip(),
-                business_name=body["business_name"].strip(),
-            )
-        )
-
-    return JSONResponse({"success": True})
+    return RedirectResponse("/signup/step3", status_code=302)
 
 
-async def _send_welcome_email(email: str, agent_name: str, business_name: str) -> None:
-    from app.services.alert_service import _send_email
+# ─── Step 3: Property Listings ───────────────────────────────────
 
-    dashboard_url = f"{settings.BASE_URL}/dashboard"
+@router.get("/step3", response_class=HTMLResponse)
+async def signup_step3(request: Request):
+    client_id = _get_client_from_session(request)
+    if not client_id:
+        return RedirectResponse("/signup", status_code=302)
+    return HTMLResponse(STEP3_HTML)
+
+
+@router.post("/step3")
+async def signup_step3_submit(request: Request):
+    client_id = _get_client_from_session(request)
+    if not client_id:
+        return RedirectResponse("/signup", status_code=302)
+
+    form = await request.form()
+    knowledge_base = str(form.get("knowledge_base", "")).strip()
+
+    if not knowledge_base:
+        return HTMLResponse(STEP3_HTML.replace("<!-- ERROR -->", '<p class="error">Please add at least some property details.</p>'))
+
+    db = get_supabase()
+    db.table("clients").update({
+        "knowledge_base": knowledge_base,
+    }).eq("id", client_id).execute()
+
+    # Provision voice agent (async)
     try:
-        await asyncio.to_thread(
-            _send_email,
-            to=email,
-            subject=f"Welcome to PropBot — {business_name}",
-            body=f"""
-<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-            max-width:560px;margin:0 auto;background:#fff;border-radius:16px;
-            overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
-  <div style="background:linear-gradient(135deg,#2563eb,#1d4ed8);padding:32px;">
-    <h1 style="color:#fff;margin:0;font-size:26px;font-weight:700;">Welcome to PropBot!</h1>
-    <p style="color:#bfdbfe;margin:8px 0 0;font-size:15px;">Your AI receptionist is being set up</p>
-  </div>
-  <div style="padding:32px;">
-    <p style="font-size:16px;color:#1e293b;margin:0 0 16px;">Hi {agent_name},</p>
-    <p style="color:#475569;line-height:1.7;margin:0 0 24px;">
-      Thank you for signing up! Your PropBot account for
-      <strong>{business_name}</strong> has been created successfully.
-    </p>
-    <div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;padding:20px;margin:0 0 28px;">
-      <p style="margin:0 0 10px;font-weight:600;color:#0369a1;">What happens next:</p>
-      <ol style="margin:0;padding-left:18px;color:#0c4a6e;line-height:2;">
-        <li>Our team assigns your dedicated Indian phone number (within 24h)</li>
-        <li>Your AI assistant <strong>Priya</strong> goes live on that number</li>
-        <li>Leads captured from every call appear in your dashboard instantly</li>
-      </ol>
-    </div>
-    <div style="text-align:center;margin:0 0 28px;">
-      <a href="{dashboard_url}"
-         style="display:inline-block;padding:14px 40px;background:#2563eb;color:#fff;
-                text-decoration:none;border-radius:10px;font-weight:700;font-size:16px;">
-        Open My Dashboard
-      </a>
-    </div>
-    <p style="color:#94a3b8;font-size:13px;border-top:1px solid #e2e8f0;padding-top:16px;margin:0;">
-      Dashboard: {dashboard_url}<br>
-      Questions? Just reply to this email.
-    </p>
-  </div>
-</div>
-""",
-        )
-        logger.info(f"Welcome email sent to {email}")
-    except Exception as exc:
-        logger.error(f"Welcome email failed: {exc}")
+        from app.services.onboarding_service import provision_voice_agent
+        await provision_voice_agent(client_id)
+        logger.info("Voice agent provisioned for %s", client_id)
+    except Exception as e:
+        logger.error("Failed to provision voice agent for %s: %s", client_id, e)
+        # Still redirect to dashboard — they can use chat, agent can be retried
+        db.table("clients").update({"onboarding_step": 3}).eq("id", client_id).execute()
+
+    return RedirectResponse("/dashboard", status_code=302)
 
 
-# ─── Signup HTML ─────────────────────────────────────────────────────────────
+# ─── Voice catalog API ───────────────────────────────────────────
 
-SIGNUP_HTML = """<!DOCTYPE html>
+@router.get("/api/voices")
+async def list_voices():
+    """Public endpoint — returns the voice catalog."""
+    return {"voices": get_catalog()}
+
+
+# ─── Shared CSS ──────────────────────────────────────────────────
+
+_SHARED_CSS = """
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; }
+.wizard { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
+.steps { display: flex; gap: 8px; margin-bottom: 24px; }
+.step { flex: 1; text-align: center; padding: 10px; font-size: 13px; font-weight: 500; color: #94a3b8; background: #fff; border-radius: 8px; border: 1px solid #e2e8f0; }
+.step.active { color: #2563eb; border-color: #2563eb; background: #eff6ff; }
+.step.done { color: #059669; border-color: #059669; background: #ecfdf5; }
+.card { background: #fff; padding: 32px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+.card h2 { font-size: 22px; margin-bottom: 6px; }
+.card .subtitle { color: #64748b; font-size: 14px; margin-bottom: 24px; }
+label { display: block; font-size: 13px; font-weight: 500; color: #475569; margin-bottom: 14px; }
+input[type="text"], input[type="email"], input[type="tel"] { display: block; width: 100%; padding: 11px 14px; margin-top: 4px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; }
+input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+.btn-primary { display: block; width: 100%; padding: 14px; margin-top: 20px; background: #2563eb; color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; }
+.btn-primary:hover { background: #1d4ed8; }
+.error { color: #dc2626; font-size: 13px; margin-bottom: 12px; padding: 10px; background: #fef2f2; border-radius: 6px; }
+@media (max-width: 640px) { .card { padding: 20px; } }
+"""
+
+_STEP2_CSS = """
+.voice-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.voice-card { display: block; cursor: pointer; border: 2px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; transition: border-color 0.15s; }
+.voice-card:hover { border-color: #93c5fd; }
+.voice-card input[type="radio"] { display: none; }
+.voice-card:has(input:checked) { border-color: #2563eb; background: #eff6ff; }
+.voice-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.voice-meta { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+.voice-desc { font-size: 13px; color: #475569; }
+.gender-tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
+.tag-f { background: #fce7f3; color: #be185d; }
+.tag-m { background: #dbeafe; color: #1d4ed8; }
+.rec-badge { font-size: 11px; padding: 2px 8px; background: #d1fae5; color: #065f46; border-radius: 10px; }
+.filter-bar { display: flex; gap: 8px; margin-bottom: 16px; }
+.filter-btn { padding: 6px 16px; border: 1px solid #e2e8f0; border-radius: 20px; background: #fff; font-size: 13px; cursor: pointer; color: #64748b; }
+.filter-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+.persona-field { margin-top: 12px; }
+"""
+
+
+# ─── HTML Templates ──────────────────────────────────────────────
+
+STEP1_HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PropBot — Sign Up Free</title>
+<title>Sign Up — PropBot</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #f0f6ff;
-  min-height: 100vh;
-  display: flex;
-  align-items: stretch;
-}
-
-/* ── Layout ── */
-.page { display: flex; min-height: 100vh; width: 100%; }
-
-.left {
-  flex: 1;
-  background: linear-gradient(145deg, #1d4ed8, #2563eb, #3b82f6);
-  padding: 60px 48px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  color: #fff;
-}
-.left-logo { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 48px; }
-.left-logo span { opacity: 0.7; font-weight: 400; }
-.left h1 { font-size: 38px; font-weight: 800; line-height: 1.2; margin-bottom: 16px; }
-.left p { font-size: 17px; color: #bfdbfe; line-height: 1.7; margin-bottom: 40px; }
-
-.benefit { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 20px; }
-.benefit-icon {
-  width: 36px; height: 36px; background: rgba(255,255,255,0.15);
-  border-radius: 8px; display: flex; align-items: center; justify-content: center;
-  font-size: 18px; flex-shrink: 0; margin-top: 2px;
-}
-.benefit-text strong { display: block; font-size: 15px; font-weight: 600; }
-.benefit-text span { font-size: 14px; color: #bfdbfe; }
-
-.price-pill {
-  display: inline-flex; align-items: center; gap: 10px;
-  background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 50px; padding: 10px 20px; margin-top: 40px;
-  font-size: 14px; color: #e0f2fe;
-}
-.price-pill strong { color: #fff; font-size: 18px; }
-
-/* ── Right / Form ── */
-.right {
-  width: 480px;
-  background: #fff;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 60px 48px;
-  box-shadow: -8px 0 40px rgba(0,0,0,0.08);
-}
-.form-header { margin-bottom: 32px; }
-.form-header h2 { font-size: 26px; font-weight: 700; color: #1e293b; margin-bottom: 6px; }
-.form-header p { color: #64748b; font-size: 15px; }
-
-.field { margin-bottom: 18px; }
-.field label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
-.field input, .field select {
-  width: 100%; padding: 11px 14px;
-  border: 1.5px solid #d1d5db; border-radius: 8px;
-  font-size: 15px; color: #1e293b;
-  transition: border-color 0.15s, box-shadow 0.15s;
-  background: #fff;
-  appearance: none;
-}
-.field input:focus, .field select:focus {
-  outline: none; border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
-}
-.field input.error { border-color: #ef4444; }
-.field-row { display: flex; gap: 12px; }
-.field-row .field { flex: 1; }
-
-.specialty-grid {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 8px; margin-top: 4px;
-}
-.specialty-opt {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; border: 1.5px solid #e2e8f0;
-  border-radius: 8px; cursor: pointer; font-size: 14px;
-  color: #374151; transition: all 0.15s; user-select: none;
-}
-.specialty-opt:hover { border-color: #93c5fd; background: #eff6ff; }
-.specialty-opt input { display: none; }
-.specialty-opt.checked { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; font-weight: 500; }
-
-.btn-submit {
-  width: 100%; padding: 14px;
-  background: #2563eb; color: #fff;
-  border: none; border-radius: 10px;
-  font-size: 16px; font-weight: 700;
-  cursor: pointer; margin-top: 8px;
-  transition: background 0.15s, transform 0.1s;
-}
-.btn-submit:hover { background: #1d4ed8; }
-.btn-submit:active { transform: scale(0.99); }
-.btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
-
-.login-link {
-  text-align: center; margin-top: 20px;
-  font-size: 14px; color: #64748b;
-}
-.login-link a { color: #2563eb; text-decoration: none; font-weight: 500; }
-.login-link a:hover { text-decoration: underline; }
-
-/* ── States ── */
-.error-msg {
-  background: #fef2f2; border: 1px solid #fecaca;
-  color: #b91c1c; padding: 12px 16px; border-radius: 8px;
-  font-size: 14px; margin-bottom: 16px; display: none;
-}
-.success-state { display: none; text-align: center; }
-.success-icon {
-  width: 72px; height: 72px; background: #d1fae5;
-  border-radius: 50%; display: flex; align-items: center;
-  justify-content: center; font-size: 32px; margin: 0 auto 20px;
-}
-.success-state h3 { font-size: 22px; color: #1e293b; margin-bottom: 10px; }
-.success-state p { color: #475569; font-size: 15px; line-height: 1.6; }
-.btn-dashboard {
-  display: inline-block; margin-top: 24px; padding: 12px 32px;
-  background: #2563eb; color: #fff; text-decoration: none;
-  border-radius: 8px; font-weight: 600; font-size: 15px;
-}
-
-/* ── Responsive ── */
-@media (max-width: 900px) {
-  .page { flex-direction: column; }
-  .left { padding: 40px 24px; }
-  .left h1 { font-size: 28px; }
-  .right { width: 100%; padding: 40px 24px; box-shadow: none; }
-  .field-row { flex-direction: column; gap: 0; }
-}
+""" + _SHARED_CSS + """
 </style>
 </head>
 <body>
-<div class="page">
-
-  <!-- Left: branding + benefits -->
-  <div class="left">
-    <div class="left-logo">Prop<span>Bot</span></div>
-    <h1>Your AI receptionist,<br>working 24/7</h1>
-    <p>Never miss a lead again. PropBot answers every call, qualifies buyers, and sends you instant alerts — even at midnight.</p>
-
-    <div class="benefit">
-      <div class="benefit-icon">📞</div>
-      <div class="benefit-text">
-        <strong>Answers every call instantly</strong>
-        <span>In Hindi, English, or Hinglish — sounds human</span>
-      </div>
+<div class="wizard">
+    <div class="steps">
+        <div class="step active">1. Business Details</div>
+        <div class="step">2. Choose Voice</div>
+        <div class="step">3. Add Listings</div>
     </div>
-    <div class="benefit">
-      <div class="benefit-icon">🎯</div>
-      <div class="benefit-text">
-        <strong>Qualifies leads automatically</strong>
-        <span>Budget, area, urgency — captured before you pick up</span>
-      </div>
+    <div class="card">
+        <h2>Tell us about your business</h2>
+        <p class="subtitle">This takes just 2 minutes. Your AI receptionist will be ready immediately.</p>
+        <!-- ERROR -->
+        <form method="POST" action="/signup">
+            <label>Business Name *
+                <input type="text" name="business_name" placeholder="e.g. Sharma Properties" required />
+            </label>
+            <label>Your Name *
+                <input type="text" name="agent_name" placeholder="e.g. Rahul Sharma" required />
+            </label>
+            <label>Email *
+                <input type="email" name="agent_email" placeholder="you@example.com" required />
+            </label>
+            <label>Phone *
+                <input type="tel" name="agent_phone" placeholder="+91 98765 43210" required />
+            </label>
+            <label>City
+                <input type="text" name="city" placeholder="e.g. Delhi, Mumbai, Bangalore" />
+            </label>
+            <button type="submit" class="btn-primary">Continue</button>
+        </form>
     </div>
-    <div class="benefit">
-      <div class="benefit-icon">⚡</div>
-      <div class="benefit-text">
-        <strong>Instant alerts to your phone</strong>
-        <span>SMS + email the moment a hot lead calls</span>
-      </div>
-    </div>
-    <div class="benefit">
-      <div class="benefit-icon">📊</div>
-      <div class="benefit-text">
-        <strong>Full dashboard to track leads</strong>
-        <span>Call history, transcripts, lead status — all in one place</span>
-      </div>
-    </div>
-
-    <div class="price-pill">
-      Flat <strong>₹5,000/month</strong> &nbsp;·&nbsp; No per-minute charges
-    </div>
-  </div>
-
-  <!-- Right: signup form -->
-  <div class="right">
-    <div class="form-header">
-      <h2>Get started free</h2>
-      <p>Set up your AI receptionist in 2 minutes</p>
-    </div>
-
-    <div class="error-msg" id="error-msg"></div>
-
-    <div id="form-area">
-      <div class="field-row">
-        <div class="field">
-          <label>Your Name</label>
-          <input type="text" id="agent_name" placeholder="Rahul Sharma" autocomplete="name" />
-        </div>
-        <div class="field">
-          <label>Business Name</label>
-          <input type="text" id="business_name" placeholder="Sharma Properties" />
-        </div>
-      </div>
-
-      <div class="field">
-        <label>Email Address</label>
-        <input type="email" id="agent_email" placeholder="rahul@sharmaproperties.com" autocomplete="email" />
-      </div>
-
-      <div class="field-row">
-        <div class="field">
-          <label>Mobile Number</label>
-          <input type="tel" id="agent_phone" placeholder="9876543210" autocomplete="tel" />
-        </div>
-        <div class="field">
-          <label>City</label>
-          <input type="text" id="city" placeholder="Delhi NCR" />
-        </div>
-      </div>
-
-      <div class="field">
-        <label>Property Speciality (optional)</label>
-        <div class="specialty-grid" id="specialty-grid">
-          <div class="specialty-opt" data-val="Residential">
-            <input type="checkbox"> 🏠 Residential
-          </div>
-          <div class="specialty-opt" data-val="Commercial">
-            <input type="checkbox"> 🏢 Commercial
-          </div>
-          <div class="specialty-opt" data-val="Plots">
-            <input type="checkbox"> 🌍 Plots & Land
-          </div>
-          <div class="specialty-opt" data-val="Luxury">
-            <input type="checkbox"> ✨ Luxury
-          </div>
-        </div>
-      </div>
-
-      <button class="btn-submit" id="submit-btn">Create My Account →</button>
-      <div class="login-link">Already registered? <a href="/dashboard">Login to dashboard</a></div>
-    </div>
-
-    <div class="success-state" id="success-state">
-      <div class="success-icon">✅</div>
-      <h3>Account created!</h3>
-      <p>
-        We've sent a welcome email to <strong id="success-email"></strong> with everything you need.<br><br>
-        Your dedicated phone number will be assigned within 24 hours. In the meantime, explore your dashboard and customise your AI assistant.
-      </p>
-      <a href="/dashboard" class="btn-dashboard">Open Dashboard</a>
-    </div>
-  </div>
 </div>
+</body>
+</html>
+"""
 
+
+def _build_step2_html():
+    """Build Step 2 HTML with voice cards from catalog."""
+    voices = get_catalog()
+    cards_html = ""
+    for v in voices:
+        rec = ' <span class="rec-badge">Recommended</span>' if v.get("recommended") else ""
+        cards_html += f"""
+        <label class="voice-card" data-gender="{v['gender']}">
+            <input type="radio" name="voice_id" value="{v['id']}" {'checked' if v.get('recommended') and v['gender'] == 'female' else ''} />
+            <div class="voice-card-inner">
+                <div class="voice-header">
+                    <strong>{v['name']}</strong>{rec}
+                    <span class="gender-tag {'tag-f' if v['gender'] == 'female' else 'tag-m'}">{v['gender'].title()}</span>
+                </div>
+                <div class="voice-meta">{v['accent']} &middot; {v['language']}</div>
+                <div class="voice-desc">{v['description']}</div>
+            </div>
+        </label>
+        """
+
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Choose Voice — PropBot</title>
+<style>
+{_SHARED_CSS}
+{_STEP2_CSS}
+</style>
+</head>
+<body>
+<div class="wizard">
+    <div class="steps">
+        <div class="step done">1. Business Details</div>
+        <div class="step active">2. Choose Voice</div>
+        <div class="step">3. Add Listings</div>
+    </div>
+    <div class="card">
+        <h2>Choose your AI assistant's voice</h2>
+        <p class="subtitle">Pick a voice that matches your brand. You can change this later.</p>
+        <form method="POST" action="/signup/step2">
+            <div class="filter-bar">
+                <button type="button" class="filter-btn active" data-filter="all">All</button>
+                <button type="button" class="filter-btn" data-filter="female">Female</button>
+                <button type="button" class="filter-btn" data-filter="male">Male</button>
+            </div>
+            <div class="voice-grid">
+                {cards_html}
+            </div>
+            <label class="persona-field">
+                Assistant Name (callers will hear this)
+                <input type="text" name="persona_name" placeholder="e.g. Priya, Ananya, Arjun" value="Priya" />
+            </label>
+            <input type="hidden" name="voice_gender" id="voice_gender" value="female" />
+            <button type="submit" class="btn-primary">Continue</button>
+        </form>
+    </div>
+</div>
 <script>
-(function () {
-  // Specialty checkboxes
-  document.querySelectorAll('.specialty-opt').forEach(function (el) {
-    el.addEventListener('click', function () {
-      this.classList.toggle('checked');
-    });
-  });
-
-  document.getElementById('submit-btn').addEventListener('click', function () {
-    submit();
-  });
-
-  // Allow Enter key on last field
-  document.getElementById('city').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') submit();
-  });
-
-  function getSpecialty() {
-    var vals = [];
-    document.querySelectorAll('.specialty-opt.checked').forEach(function (el) {
-      vals.push(el.dataset.val);
-    });
-    return vals.join(', ');
-  }
-
-  function showError(msg) {
-    var el = document.getElementById('error-msg');
-    el.textContent = msg;
-    el.style.display = 'block';
-    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
-
-  function hideError() {
-    document.getElementById('error-msg').style.display = 'none';
-  }
-
-  function submit() {
-    hideError();
-    var btn = document.getElementById('submit-btn');
-    var payload = {
-      agent_name:    document.getElementById('agent_name').value.trim(),
-      business_name: document.getElementById('business_name').value.trim(),
-      agent_email:   document.getElementById('agent_email').value.trim(),
-      agent_phone:   document.getElementById('agent_phone').value.trim(),
-      city:          document.getElementById('city').value.trim(),
-      specialty:     getSpecialty(),
-    };
-
-    var required = { agent_name: 'Your name', business_name: 'Business name', agent_email: 'Email', agent_phone: 'Phone', city: 'City' };
-    for (var k in required) {
-      if (!payload[k]) { showError(required[k] + ' is required.'); return; }
-    }
-
-    btn.disabled = true;
-    btn.textContent = 'Creating account…';
-
-    fetch('/signup', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
-    .then(function (res) {
-      if (!res.ok) {
-        showError(res.data.error || 'Something went wrong. Please try again.');
-        btn.disabled = false;
-        btn.textContent = 'Create My Account →';
-        return;
-      }
-      // Success
-      document.getElementById('success-email').textContent = payload.agent_email;
-      document.getElementById('form-area').style.display = 'none';
-      document.getElementById('success-state').style.display = 'block';
-    })
-    .catch(function () {
-      showError('Network error. Please check your connection and try again.');
-      btn.disabled = false;
-      btn.textContent = 'Create My Account →';
-    });
-  }
-})();
+document.querySelectorAll('.filter-btn').forEach(function(btn) {{
+    btn.addEventListener('click', function() {{
+        document.querySelectorAll('.filter-btn').forEach(function(b) {{ b.classList.remove('active'); }});
+        this.classList.add('active');
+        var f = this.dataset.filter;
+        document.querySelectorAll('.voice-card').forEach(function(c) {{
+            c.style.display = (f === 'all' || c.dataset.gender === f) ? '' : 'none';
+        }});
+    }});
+}});
+document.querySelectorAll('input[name="voice_id"]').forEach(function(r) {{
+    r.addEventListener('change', function() {{
+        var card = this.closest('.voice-card');
+        document.getElementById('voice_gender').value = card.dataset.gender;
+    }});
+}});
 </script>
+</body>
+</html>
+"""
+
+
+STEP3_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Add Listings — PropBot</title>
+<style>
+""" + _SHARED_CSS + """
+textarea { width: 100%; min-height: 300px; padding: 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; font-family: monospace; line-height: 1.6; resize: vertical; }
+textarea:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+.template-hint { background: #f0f4ff; padding: 14px; border-radius: 8px; font-size: 13px; color: #475569; margin-bottom: 16px; }
+.template-hint code { background: #e0e7ff; padding: 2px 6px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<div class="wizard">
+    <div class="steps">
+        <div class="step done">1. Business Details</div>
+        <div class="step done">2. Choose Voice</div>
+        <div class="step active">3. Add Listings</div>
+    </div>
+    <div class="card">
+        <h2>Add your property listings</h2>
+        <p class="subtitle">Your AI assistant will use this to answer questions. You can update this anytime from the dashboard.</p>
+        <!-- ERROR -->
+        <div class="template-hint">
+            <strong>Tip:</strong> Use the format below. Add each property with <code>##</code> heading, then details like price, area, type, and features.
+        </div>
+        <form method="POST" action="/signup/step3">
+            <textarea name="knowledge_base" placeholder="## Green Valley Apartments, Sector 150 Noida
+- Type: 2BHK, 3BHK
+- Price: 55 lakh - 85 lakh
+- Possession: June 2026
+- Features: Swimming pool, gym, 24/7 security, metro nearby
+- Area: 950 sq ft - 1400 sq ft
+
+## Royal Heights, Sector 56 Gurgaon
+- Type: 3BHK, 4BHK
+- Price: 1.2 crore - 1.8 crore
+- Possession: Ready to move
+- Features: Golf course road, imported marble, modular kitchen
+- Area: 1800 sq ft - 2400 sq ft
+
+## FAQ
+Q: Do you help with home loans?
+A: Yes, we help with home loan processing through partner banks.
+
+Q: What is the registration process?
+A: We handle the complete registration and documentation process."></textarea>
+            <button type="submit" class="btn-primary">Launch My AI Receptionist</button>
+        </form>
+    </div>
+</div>
 </body>
 </html>
 """

@@ -106,6 +106,21 @@ CREATE INDEX idx_api_keys_key_hash ON api_keys(key_hash);
 CREATE INDEX idx_api_keys_client_id ON api_keys(client_id);
 
 -- =========================
+-- MIGRATION: Add self-serve signup columns
+-- =========================
+-- Run these if your clients table already exists:
+--
+-- ALTER TABLE clients ADD COLUMN IF NOT EXISTS voice_id text DEFAULT '';
+-- ALTER TABLE clients ADD COLUMN IF NOT EXISTS voice_name text DEFAULT 'Priya';
+-- ALTER TABLE clients ADD COLUMN IF NOT EXISTS voice_gender text DEFAULT 'female';
+-- ALTER TABLE clients ADD COLUMN IF NOT EXISTS language_preference text DEFAULT 'hi,en';
+-- ALTER TABLE clients ADD COLUMN IF NOT EXISTS city text DEFAULT '';
+-- ALTER TABLE clients ADD COLUMN IF NOT EXISTS onboarding_step int DEFAULT 0;
+-- ALTER TABLE clients ADD COLUMN IF NOT EXISTS trial_ends_at timestamptz DEFAULT (now() + interval '14 days');
+-- ALTER TABLE clients ADD COLUMN IF NOT EXISTS calls_this_month int DEFAULT 0;
+-- ALTER TABLE clients ADD COLUMN IF NOT EXISTS messages_this_month int DEFAULT 0;
+
+-- =========================
 -- Auto-update updated_at
 -- =========================
 CREATE OR REPLACE FUNCTION update_updated_at()
