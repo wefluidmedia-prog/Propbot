@@ -103,6 +103,8 @@ async def signup_step1_submit(request: Request):
         return response
 
     # Create new client — try with new columns, fall back to core if migration not applied
+    from datetime import datetime, timezone, timedelta
+    trial_end = (datetime.now(timezone.utc) + timedelta(days=14)).isoformat()
     try:
         result = db.table("clients").insert({
             "business_name": business_name,
@@ -112,6 +114,8 @@ async def signup_step1_submit(request: Request):
             "city": city,
             "onboarding_step": 1,
             "subscription_status": "trial",
+            "setup_status": "provisioning",
+            "trial_ends_at": trial_end,
         }).execute()
     except Exception:
         # Migration may not have been applied — insert without new columns
@@ -121,6 +125,8 @@ async def signup_step1_submit(request: Request):
             "agent_email": agent_email,
             "agent_phone": agent_phone,
             "subscription_status": "trial",
+            "setup_status": "provisioning",
+            "trial_ends_at": trial_end,
         }).execute()
 
     client_id = result.data[0]["id"]

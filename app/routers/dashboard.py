@@ -163,8 +163,8 @@ async def get_my_profile(client_id: str = Depends(_get_client_id_from_session)):
     db = get_supabase()
     result = db.table("clients").select(
         "id, business_name, agent_name, agent_email, agent_phone, "
-        "assistant_persona_name, subscription_status, exotel_number, "
-        "bolna_agent_id, created_at"
+        "assistant_persona_name, subscription_status, trial_ends_at, "
+        "exotel_number, setup_status, bolna_agent_id, created_at"
     ).eq("id", client_id).single().execute()
     return result.data
 
@@ -299,6 +299,88 @@ async def get_embed_code(client_id: str = Depends(_get_client_id_from_session)):
     }
 
 
+# ─── Admin: Phone Pool ─────────────────────────────────────────
+
+def _require_admin(request: Request) -> None:
+    """Simple admin auth via Authorization: Bearer {WEBHOOK_SECRET}."""
+    auth = request.headers.get("Authorization", "")
+    secret = settings.WEBHOOK_SECRET
+    if not secret or not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Admin auth required")
+    token = auth[len("Bearer "):]
+    if not hmac.compare_digest(token, secret):
+        raise HTTPException(status_code=401, detail="Invalid admin token")
+
+
+@router.post("/api/admin/phone-pool")
+async def seed_phone_pool(request: Request):
+    """Add phone numbers to the pool. Auth: Bearer {WEBHOOK_SECRET}."""
+    _require_admin(request)
+    body = await request.json()
+    numbers = body.get("numbers", [])
+    if not numbers:
+        raise HTTPException(400, "Provide a 'numbers' list")
+    db = get_supabase()
+    added = 0
+    for num in numbers:
+        num = str(num).strip()
+        if not num:
+            continue
+        try:
+            db.table("phone_number_pool").insert({"phone_number": num}).execute()
+            added += 1
+        except Exception:
+            pass  # Skip duplicates
+    return {"added": added, "total_submitted": len(numbers)}
+
+
+@router.get("/api/admin/phone-pool")
+async def get_phone_pool_status(request: Request):
+    """Get phone pool stats. Auth: Bearer {WEBHOOK_SECRET}."""
+    _require_admin(request)
+    from app.services.phone_service import get_pool_stats
+    return await get_pool_stats()
+
+
+# ─── Calendar OAuth ─────────────────────────────────────────────
+
+@router.get("/api/calendar/status")
+async def calendar_status(client_id: str = Depends(_get_client_id_from_session)):
+    """Returns whether Google Calendar is connected."""
+    from app.services.calendar_service import is_calendar_connected
+    connected = await is_calendar_connected(client_id)
+    return {"connected": connected}
+
+
+@router.get("/google/connect")
+async def connect_google_calendar(request: Request):
+    """Redirect to Google OAuth consent screen."""
+    client_id = _get_client_id_from_session(request)
+    from app.services.calendar_service import get_oauth_url
+    url = await get_oauth_url(client_id)
+    return RedirectResponse(url)
+
+
+@router.get("/google/callback")
+async def google_oauth_callback(
+    request: Request,
+    code: str = Query(...),
+    state: str = Query(...),
+):
+    """Google OAuth callback. state = client_id."""
+    from app.services.calendar_service import handle_oauth_callback
+    await handle_oauth_callback(code=code, client_id=state)
+    return RedirectResponse("/dashboard")
+
+
+@router.post("/google/disconnect")
+async def disconnect_google_calendar(client_id: str = Depends(_get_client_id_from_session)):
+    """Remove Google Calendar connection."""
+    from app.services.calendar_service import disconnect_calendar
+    await disconnect_calendar(client_id)
+    return {"status": "disconnected"}
+
+
 # ─── Dashboard HTML (SPA) ───────────────────────────────────────
 
 @router.get("", response_class=HTMLResponse)
@@ -403,6 +485,49 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 .audio-player audio { width: 100%; border-radius: 6px; }
 .no-recording { color: #94a3b8; font-size: 13px; font-style: italic; }
 
+/* Phone Number Banner */
+.phone-banner { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-radius: 10px; margin-bottom: 20px; font-size: 14px; font-weight: 500; }
+.phone-banner.ready { background: #ecfdf5; border: 1px solid #6ee7b7; color: #065f46; }
+.phone-banner.provisioning { background: #eff6ff; border: 1px solid #93c5fd; color: #1d4ed8; }
+.phone-banner.failed { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; }
+.phone-number { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
+
+/* Trial Warning */
+.trial-warning { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; padding: 12px 20px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; }
+.trial-expired { background: #fef2f2; border: 1px solid #fca5a5; color: #991b1b; padding: 12px 20px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; }
+.trial-warning a, .trial-expired a { font-weight: 600; color: inherit; text-decoration: underline; cursor: pointer; }
+
+/* Billing Tab */
+.billing-box { background: #fff; padding: 32px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); max-width: 600px; }
+.billing-box h3 { font-size: 18px; margin-bottom: 6px; }
+.billing-box .sub-label { color: #64748b; font-size: 14px; margin-bottom: 24px; }
+.billing-status-badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-bottom: 20px; }
+.badge-trial { background: #dbeafe; color: #1d4ed8; }
+.badge-active { background: #d1fae5; color: #065f46; }
+.badge-paused { background: #fef3c7; color: #92400e; }
+.badge-cancelled { background: #fee2e2; color: #991b1b; }
+.billing-amount { font-size: 32px; font-weight: 700; color: #1e293b; margin-bottom: 4px; }
+.billing-period { color: #64748b; font-size: 14px; margin-bottom: 24px; }
+.btn-subscribe { padding: 14px 28px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
+.btn-subscribe:hover { background: #1d4ed8; }
+.btn-subscribe:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-cancel-sub { padding: 10px 20px; background: #fff; color: #ef4444; border: 1px solid #fca5a5; border-radius: 8px; font-size: 14px; cursor: pointer; margin-top: 12px; }
+.btn-cancel-sub:hover { background: #fef2f2; }
+.trial-info { color: #64748b; font-size: 13px; margin-top: 16px; }
+
+/* Calendar Tab */
+.calendar-box { background: #fff; padding: 32px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); max-width: 600px; }
+.calendar-box h3 { font-size: 18px; margin-bottom: 6px; }
+.calendar-box .sub-label { color: #64748b; font-size: 14px; margin-bottom: 24px; }
+.calendar-connected { display: flex; align-items: center; gap: 12px; padding: 16px; background: #ecfdf5; border: 1px solid #6ee7b7; border-radius: 10px; margin-bottom: 16px; }
+.calendar-connected span { font-weight: 600; color: #065f46; }
+.btn-connect-cal { padding: 12px 24px; background: #fff; color: #1e293b; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.btn-connect-cal:hover { background: #f8fafc; border-color: #2563eb; color: #2563eb; }
+.btn-disconnect-cal { padding: 8px 16px; background: #fff; color: #64748b; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; cursor: pointer; }
+.btn-disconnect-cal:hover { background: #f8fafc; }
+.calendar-benefit { display: flex; gap: 10px; padding: 12px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; color: #475569; }
+.calendar-benefit:last-child { border-bottom: none; }
+
 /* Mobile */
 @media (max-width: 768px) {
   .leads-table { overflow-x: auto; }
@@ -498,6 +623,38 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
         '</div>' +
       '</div>';
 
+    // Phone number banner
+    if (profile.setup_status === 'ready' && profile.exotel_number) {
+      html += '<div class="phone-banner ready">' +
+        '<span>&#128222;</span>' +
+        '<div>' +
+          '<div>Your AI Receptionist Number</div>' +
+          '<div class="phone-number">' + esc(profile.exotel_number) + '</div>' +
+        '</div>' +
+        '<div style="margin-left:auto;font-size:13px;color:#059669;">Share this number with your clients!</div>' +
+      '</div>';
+    } else if (profile.setup_status === 'provisioning') {
+      html += '<div class="phone-banner provisioning">' +
+        '<span>&#9203;</span>' +
+        '<span>Setting up your phone number... This may take a minute. Refresh the page shortly.</span>' +
+      '</div>';
+    } else if (profile.setup_status === 'failed') {
+      html += '<div class="phone-banner failed">' +
+        '<span>&#9888;</span>' +
+        '<span>Phone number setup pending. Please contact support.</span>' +
+      '</div>';
+    }
+
+    // Trial warning
+    if (profile.subscription_status === 'trial' && profile.trial_ends_at) {
+      var daysLeft = Math.ceil((new Date(profile.trial_ends_at) - new Date()) / 86400000);
+      if (daysLeft <= 0) {
+        html += '<div class="trial-expired">&#9888; Your trial has expired. <a onclick="switchTab(\'billing\')">Subscribe now</a> to reactivate your AI receptionist.</div>';
+      } else if (daysLeft <= 3) {
+        html += '<div class="trial-warning">&#9888; Your trial expires in ' + daysLeft + ' day' + (daysLeft === 1 ? '' : 's') + '. <a onclick="switchTab(\'billing\')">Subscribe now</a> to keep your AI receptionist active.</div>';
+      }
+    }
+
     // Stats
     html +=
       '<div class="stats-grid">' +
@@ -513,6 +670,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
         tabBtn('leads', 'Leads') +
         tabBtn('calls', 'Call History') +
         tabBtn('embed', 'Widget Code') +
+        tabBtn('billing', 'Billing') +
+        tabBtn('calendar', 'Calendar') +
       '</div>';
 
     // Content
@@ -540,6 +699,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
       renderCalls(el);
     } else if (activeTab === 'embed') {
       renderEmbed(el);
+    } else if (activeTab === 'billing') {
+      renderBilling(el);
+    } else if (activeTab === 'calendar') {
+      renderCalendar(el);
     }
   }
 
@@ -691,6 +854,109 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 
   function tabBtn(key, label) {
     return '<button class="tab' + (activeTab === key ? ' active' : '') + '" data-tab="' + key + '">' + label + '</button>';
+  }
+
+  function switchTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.tab').forEach(function(x) { x.classList.remove('active'); });
+    var t = document.querySelector('.tab[data-tab="' + tab + '"]');
+    if (t) t.classList.add('active');
+    renderTabContent();
+  }
+
+  function renderBilling(el) {
+    fetch('/api/billing/status')
+      .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+      .then(function(data) {
+        var status = data.subscription_status || 'trial';
+        var badgeClass = 'badge-' + status;
+        var badgeLabel = status.charAt(0).toUpperCase() + status.slice(1);
+        var trialInfo = '';
+        if (status === 'trial' && data.trial_ends_at) {
+          var daysLeft = Math.ceil((new Date(data.trial_ends_at) - new Date()) / 86400000);
+          trialInfo = '<p class="trial-info">Trial ' + (daysLeft > 0 ? 'expires in ' + daysLeft + ' day' + (daysLeft === 1 ? '' : 's') : 'has expired') + '.</p>';
+        }
+        var actionBtn = '';
+        if (status === 'active') {
+          actionBtn = '<button class="btn-cancel-sub" id="cancel-sub-btn">Cancel Subscription</button>';
+        } else {
+          actionBtn = '<button class="btn-subscribe" id="subscribe-btn">Subscribe Now &mdash; Rs 5,000 / month</button>' + trialInfo;
+        }
+        el.innerHTML =
+          '<div class="billing-box">' +
+            '<h3>Billing &amp; Subscription</h3>' +
+            '<p class="sub-label">Manage your PropBot subscription</p>' +
+            '<span class="billing-status-badge ' + badgeClass + '">' + badgeLabel + '</span>' +
+            '<div class="billing-amount">Rs ' + fmt(data.monthly_fee_inr || 5000) + '</div>' +
+            '<div class="billing-period">per month &middot; billed monthly via Razorpay</div>' +
+            actionBtn +
+          '</div>';
+
+        var subBtn = document.getElementById('subscribe-btn');
+        if (subBtn) {
+          subBtn.addEventListener('click', function() {
+            this.disabled = true;
+            this.textContent = 'Creating subscription...';
+            fetch('/api/billing/subscribe', {method: 'POST'})
+              .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+              .then(function(d) { window.location.href = d.checkout_url; })
+              .catch(function() { alert('Failed to create subscription. Please try again.'); subBtn.disabled = false; subBtn.textContent = 'Subscribe Now — Rs 5,000 / month'; });
+          });
+        }
+
+        var cancelBtn = document.getElementById('cancel-sub-btn');
+        if (cancelBtn) {
+          cancelBtn.addEventListener('click', function() {
+            if (!confirm('Are you sure you want to cancel your subscription? Your AI receptionist will stop working.')) return;
+            this.disabled = true;
+            fetch('/api/billing/cancel', {method: 'POST'})
+              .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+              .then(function() { renderBilling(el); })
+              .catch(function() { alert('Failed to cancel. Please try again.'); cancelBtn.disabled = false; });
+          });
+        }
+      })
+      .catch(function() {
+        el.innerHTML = '<div class="empty-state"><h3>Could not load billing info</h3><p>Please refresh the page.</p></div>';
+      });
+  }
+
+  function renderCalendar(el) {
+    fetch('/dashboard/api/calendar/status')
+      .then(function(r) { return r.ok ? r.json() : {connected: false}; })
+      .then(function(data) {
+        var connectedHtml = data.connected
+          ? '<div class="calendar-connected">' +
+              '<span style="font-size:24px;">&#10003;</span>' +
+              '<span>Google Calendar connected</span>' +
+              '<button class="btn-disconnect-cal" style="margin-left:auto;" onclick="disconnectCalendar()">Disconnect</button>' +
+            '</div>'
+          : '<button class="btn-connect-cal" onclick="location.href=\'/dashboard/google/connect\'">' +
+              '<span style="font-size:18px;">&#128197;</span> Connect Google Calendar' +
+            '</button>' +
+              '<p style="color:#64748b;font-size:13px;margin-top:12px;">Required for the AI to book property viewings during calls</p>';
+
+        el.innerHTML =
+          '<div class="calendar-box">' +
+            '<h3>Google Calendar</h3>' +
+            '<p class="sub-label">Allow your AI receptionist to book property viewings automatically</p>' +
+            connectedHtml +
+            '<div style="margin-top:24px;">' +
+              '<p style="font-size:13px;font-weight:600;color:#475569;margin-bottom:12px;">How it works</p>' +
+              '<div class="calendar-benefit"><span>&#128222;</span><span>Caller asks to visit a property on Saturday 4pm</span></div>' +
+              '<div class="calendar-benefit"><span>&#129302;</span><span>AI checks your calendar for availability</span></div>' +
+              '<div class="calendar-benefit"><span>&#128197;</span><span>AI books the viewing and confirms with the caller</span></div>' +
+              '<div class="calendar-benefit"><span>&#128276;</span><span>You get a calendar event with caller details</span></div>' +
+            '</div>' +
+          '</div>';
+      });
+  }
+
+  function disconnectCalendar() {
+    if (!confirm('Disconnect Google Calendar? The AI will no longer be able to book viewings.')) return;
+    fetch('/dashboard/google/disconnect', {method: 'POST'})
+      .then(function() { switchTab('calendar'); })
+      .catch(function() { alert('Failed to disconnect. Please try again.'); });
   }
 
   function esc(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }

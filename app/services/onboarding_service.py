@@ -75,6 +75,19 @@ async def provision_voice_agent(client_id: str) -> str:
         "onboarding_step": 3,
     }).eq("id", client_id).execute()
 
+    # Assign phone number from pool and bind to Bolna agent
+    from app.services.phone_service import assign_phone_number
+    phone_number = await assign_phone_number(client_id)
+    if phone_number:
+        # Update Bolna agent with the phone number
+        config.telephony_number = phone_number
+        await engine.update_agent(handle.agent_id, config)
+        db.table("clients").update({"setup_status": "ready"}).eq("id", client_id).execute()
+        logger.info("Phone %s assigned and bound to agent for %s", phone_number, business)
+    else:
+        db.table("clients").update({"setup_status": "failed"}).eq("id", client_id).execute()
+        logger.critical("No phone numbers available for client %s", client_id)
+
     # Generate API key
     raw_key = create_api_key(client_id, label="signup")
     logger.info("API key generated for %s", business)

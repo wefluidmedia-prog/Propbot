@@ -24,6 +24,15 @@ logger = logging.getLogger(__name__)
 async def chat_message(client_id: str, req: ChatRequest, request: Request):
     """Process a chat message for a client's widget."""
     rate_limit_chat(request, client_id)
+
+    # Enforce subscription
+    from app.services.billing_service import check_subscription_active
+    if not await check_subscription_active(client_id):
+        return ChatResponse(
+            reply="This service is currently unavailable. Please contact the business directly.",
+            visitor_id=req.visitor_id or "",
+        )
+
     try:
         history = [{"role": m.role, "content": m.content} for m in req.history]
         result = await get_chat_response(

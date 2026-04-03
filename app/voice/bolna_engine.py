@@ -154,8 +154,8 @@ class BolnaEngine(VoiceEngine):
         }
 
     def _build_agent_payload(self, config: AgentConfig) -> dict:
-        """Convert AgentConfig to Bolna API payload."""
-        payload = {
+        """Convert AgentConfig to Bolna API v2 payload."""
+        agent_config = {
             "agent_name": config.agent_name,
             "agent_welcome_message": config.first_message,
             "agent_type": "conversational",
@@ -166,8 +166,16 @@ class BolnaEngine(VoiceEngine):
                         "llm_agent": self._build_llm_config(config.system_prompt),
                         "synthesizer": {
                             "provider": "elevenlabs",
-                            "voice_id": config.voice_id,
-                            "model": "eleven_multilingual_v2",
+                            "stream": True,
+                            "caching": True,
+                            "audio_format": "wav",
+                            "provider_config": {
+                                "voice_id": config.voice_id,
+                                "model": "eleven_turbo_v2_5",
+                                "speed": 1.0,
+                                "style": 0.4,
+                                "similarity_boost": 0.75,
+                            },
                         },
                         "transcriber": {
                             "provider": "deepgram",
@@ -187,42 +195,36 @@ class BolnaEngine(VoiceEngine):
                     "tools": self._convert_tools(config.tools, config.webhook_url),
                 }
             ],
+        }
+
+        if config.telephony_number:
+            agent_config["telephony_provider"] = "exotel"
+            agent_config["phone_number"] = config.telephony_number
+
+        return {
+            "agent_config": agent_config,
+            "agent_prompts": {},
             "metadata": {
                 "client_id": config.client_id,
                 **(config.metadata or {}),
             },
         }
 
-        if config.telephony_number:
-            payload["telephony_provider"] = "exotel"
-            payload["phone_number"] = config.telephony_number
-
-        return payload
-
     def _build_llm_config(self, system_prompt: str) -> dict:
-        """Build LLM config for Bolna — supports OpenAI or Claude via LiteLLM."""
-        from app.config import settings
-
-        if settings.LLM_PROVIDER.lower() == "openai":
-            return {
+        """Build LLM agent config for Bolna v2 API."""
+        return {
+            "agent_type": "simple_llm_agent",
+            "agent_flow_type": "streaming",
+            "llm_config": {
                 "provider": "openai",
-                "model": "gpt-4o-mini",
-                "max_tokens": 500,
-                "temperature": 0.4,
+                "model": "gpt-4.1-mini",
                 "family": "openai",
+                "max_tokens": 400,
+                "temperature": 0.35,
                 "agent_flow_type": "streaming",
                 "system_prompt": system_prompt,
-            }
-        else:
-            return {
-                "provider": "openrouter",
-                "model": "anthropic/claude-sonnet-4-20250514",
-                "max_tokens": 500,
-                "temperature": 0.4,
-                "family": "anthropic",
-                "agent_flow_type": "streaming",
-                "system_prompt": system_prompt,
-            }
+            },
+        }
 
     def _convert_tools(self, tools: list[dict], webhook_url: str) -> list[dict]:
         """Convert our agnostic tool definitions to Bolna's format."""

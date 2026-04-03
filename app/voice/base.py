@@ -174,4 +174,23 @@ VOICE_TOOLS = [
             "required": ["reason"],
         },
     },
+    {
+        "name": "book_viewing",
+        "description": (
+            "Book a property viewing appointment on the agent's calendar. "
+            "Call this when the caller wants to schedule a site visit. "
+            "Confirm the date, time, and property with the caller before booking."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "attendee_name": {"type": "string", "description": "Caller's full name"},
+                "attendee_phone": {"type": "string", "description": "Caller's phone number"},
+                "viewing_date": {"type": "string", "description": "Date for the viewing in YYYY-MM-DD format"},
+                "viewing_time": {"type": "string", "description": "Time for the viewing in HH:MM format (24-hour, IST)"},
+                "property_name": {"type": "string", "description": "Name or description of the property to visit"},
+            },
+            "required": ["attendee_name", "attendee_phone", "viewing_date", "viewing_time", "property_name"],
+        },
+    },
 ]

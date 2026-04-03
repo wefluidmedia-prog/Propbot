@@ -138,3 +138,24 @@ CREATE TRIGGER clients_updated_at
 CREATE TRIGGER leads_updated_at
     BEFORE UPDATE ON leads
     FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- =========================
+-- MIGRATION: Phone number pool + billing + calendar
+-- =========================
+
+CREATE TABLE phone_number_pool (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    phone_number TEXT NOT NULL UNIQUE,
+    client_id UUID REFERENCES clients(id) ON DELETE SET NULL,
+    assigned_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_phone_pool_available ON phone_number_pool(client_id) WHERE client_id IS NULL;
+CREATE INDEX idx_phone_pool_client ON phone_number_pool(client_id) WHERE client_id IS NOT NULL;
+
+-- New columns on clients
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS razorpay_subscription_id TEXT;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS razorpay_customer_id TEXT;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS google_calendar_token JSONB;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS setup_status TEXT DEFAULT 'provisioning';

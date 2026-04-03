@@ -32,6 +32,17 @@ class Settings(BaseSettings):
     SMTP_EMAIL: str = ""
     SMTP_APP_PASSWORD: str = ""
 
+    # Razorpay
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+    RAZORPAY_PLAN_ID: str = ""
+    RAZORPAY_WEBHOOK_SECRET: str = ""
+
+    # Google Calendar (OAuth2)
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_REDIRECT_URI: str = ""
+
     # App
     BASE_URL: str = "https://propbot.onrender.com"
     WEBHOOK_SECRET: str = ""
