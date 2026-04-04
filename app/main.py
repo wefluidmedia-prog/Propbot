@@ -8,7 +8,6 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-import httpx
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -21,19 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 async def _self_ping():
-    """Ping own /health endpoint every 14 minutes to prevent Render free tier spin-down."""
-    if not settings.BASE_URL:
-        logger.warning("BASE_URL not set — self-ping disabled")
-        return
-    url = f"{settings.BASE_URL.rstrip('/')}/health"
-    async with httpx.AsyncClient() as client:
-        while True:
-            await asyncio.sleep(14 * 60)
-            try:
-                resp = await client.get(url, timeout=10)
-                logger.info("Self-ping %s → %s", url, resp.status_code)
-            except Exception as exc:
-                logger.warning("Self-ping failed: %s", exc)
+    """No-op on App Runner (always warm). Kept for local/Render compatibility."""
+    return
 
 logging.basicConfig(
     level=logging.INFO,
