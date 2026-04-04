@@ -1269,7 +1269,7 @@ function renderBilling(){
       api('/api/billing/subscribe', {method:'POST'}).then(function(res){
         if(res.checkout_url) window.location.href=res.checkout_url;
         else alert('Could not create subscription. Please try again.');
-      }).catch(function(){ alert('Error creating subscription.'); });
+      }).catch(function(e){ alert('Error: ' + (e && e.detail ? e.detail : 'Could not create subscription. Please try again.')); });
     };
 
     var cancelBtn = document.getElementById('cancel-btn');

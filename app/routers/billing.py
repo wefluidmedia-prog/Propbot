@@ -45,10 +45,16 @@ def _get_client_id_from_session(request: Request) -> str:
 async def subscribe(request: Request):
     """Create Razorpay subscription, return checkout URL. Requires session."""
     client_id = _get_client_id_from_session(request)
+    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_PLAN_ID:
+        raise HTTPException(status_code=503, detail="Billing not configured")
     logger.info("Creating Razorpay subscription for client %s", client_id)
     from app.services.billing_service import create_subscription
-    result = await create_subscription(client_id)
-    return {"checkout_url": result["short_url"]}
+    try:
+        result = await create_subscription(client_id)
+        return {"checkout_url": result["short_url"]}
+    except Exception as e:
+        logger.error("Subscription creation failed for client %s: %s", client_id, e)
+        raise HTTPException(status_code=500, detail=f"Subscription error: {str(e)}")
 
 
 @router.post("/razorpay")
