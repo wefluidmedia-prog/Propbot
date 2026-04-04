@@ -404,6 +404,42 @@ async def get_phone_pool_status(request: Request):
     return await get_pool_stats()
 
 
+@router.get("/api/admin/clients")
+async def list_clients(request: Request):
+    """List all clients. Admin only."""
+    _require_admin(request)
+    db = get_supabase()
+    result = db.table("clients").select("id, business_name, agent_email, setup_status, exotel_number, subscription_status").execute()
+    return {"clients": result.data or []}
+
+
+@router.post("/api/admin/retry-provision/{client_id}")
+async def retry_provision(client_id: str, request: Request):
+    """Retry phone assignment + set status to ready for a stuck client. Admin only."""
+    _require_admin(request)
+    db = get_supabase()
+    client = db.table("clients").select("id, setup_status, exotel_number, business_name").eq("id", client_id).single().execute()
+    if not client.data:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    info = client.data
+    result = {"client_id": client_id, "business": info.get("business_name")}
+
+    # Assign phone if missing
+    if not info.get("exotel_number"):
+        from app.services.phone_service import assign_phone_number
+        phone = await assign_phone_number(client_id)
+        result["phone_assigned"] = phone
+    else:
+        result["phone_assigned"] = info["exotel_number"]
+        result["phone_note"] = "already had number"
+
+    # Set status to ready
+    db.table("clients").update({"setup_status": "ready"}).eq("id", client_id).execute()
+    result["setup_status"] = "ready"
+    return result
+
+
 # ─── Calendar OAuth ─────────────────────────────────────────────
 
 @router.get("/api/calendar/status")
