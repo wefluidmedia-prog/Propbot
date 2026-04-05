@@ -35,7 +35,8 @@ class Settings(BaseSettings):
     # Razorpay
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
-    RAZORPAY_PLAN_ID: str = ""
+    RAZORPAY_PLAN_ID: str = ""           # Pro plan — ₹4,999/month
+    RAZORPAY_STARTER_PLAN_ID: str = ""   # Starter plan — ₹2,499/month
     RAZORPAY_WEBHOOK_SECRET: str = ""
 
     # Google Calendar (OAuth2)

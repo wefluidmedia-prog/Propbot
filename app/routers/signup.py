@@ -11,7 +11,7 @@ import time
 import hmac
 import hashlib
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.config import settings
@@ -54,7 +54,8 @@ def _get_client_from_session(request: Request) -> str | None:
 
 @router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
-async def signup_step1(request: Request):
+async def signup_step1(request: Request, plan: str = Query(default="pro")):
+    plan = plan if plan in ("starter", "pro") else "pro"
     # If already signed up, redirect to appropriate step
     client_id = _get_client_from_session(request)
     if client_id:
@@ -71,7 +72,7 @@ async def signup_step1(request: Request):
                     return RedirectResponse("/signup/step2", status_code=302)
         except Exception:
             pass  # If DB query fails (e.g. column missing), just show the form
-    return HTMLResponse(STEP1_HTML)
+    return HTMLResponse(_build_step1_html(plan))
 
 
 @router.post("")
@@ -84,8 +85,11 @@ async def signup_step1_submit(request: Request):
     agent_phone = str(form.get("agent_phone", "")).strip()
     city = str(form.get("city", "")).strip()
 
+    plan = str(form.get("plan", "pro")).strip()
+    plan = plan if plan in ("starter", "pro") else "pro"
+
     if not all([business_name, agent_name, agent_email, agent_phone]):
-        return HTMLResponse(STEP1_HTML.replace("<!-- ERROR -->", '<p class="error">Please fill all required fields.</p>'))
+        return HTMLResponse(_build_step1_html(plan).replace("<!-- ERROR -->", '<p class="error">Please fill all required fields.</p>'))
 
     # Check if email already exists
     db = get_supabase()
@@ -116,6 +120,7 @@ async def signup_step1_submit(request: Request):
             "subscription_status": "trial",
             "setup_status": "provisioning",
             "trial_ends_at": trial_end,
+            "plan_type": plan,
         }).execute()
     except Exception:
         # Migration may not have been applied — insert without new columns
@@ -266,14 +271,35 @@ _STEP2_CSS = """
 
 # ─── HTML Templates ──────────────────────────────────────────────
 
-STEP1_HTML = """<!DOCTYPE html>
+def _build_step1_html(plan: str = "pro") -> str:
+    """Build Step 1 HTML showing the selected plan and a hidden plan input."""
+    if plan == "starter":
+        plan_label = "Starter — ₹2,499/month"
+        plan_color = "#059669"
+        plan_bg = "#ecfdf5"
+        plan_border = "#6ee7b7"
+    else:
+        plan_label = "Pro — ₹4,999/month"
+        plan_color = "#2563eb"
+        plan_bg = "#eff6ff"
+        plan_border = "#93c5fd"
+
+    return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sign Up — PropBot</title>
 <style>
-""" + _SHARED_CSS + """
+{_SHARED_CSS}
+.plan-pill {{
+    display: inline-flex; align-items: center; gap: 6px;
+    background: {plan_bg}; border: 1px solid {plan_border};
+    color: {plan_color}; padding: 5px 14px; border-radius: 20px;
+    font-size: 13px; font-weight: 600; margin-bottom: 20px;
+}}
+.plan-pill a {{ color: {plan_color}; font-size: 12px; margin-left: 4px; opacity: 0.7; text-decoration: underline; }}
+.trial-note {{ font-size: 13px; color: #059669; font-weight: 500; margin-bottom: 16px; }}
 </style>
 </head>
 <body>
@@ -285,9 +311,14 @@ STEP1_HTML = """<!DOCTYPE html>
     </div>
     <div class="card">
         <h2>Tell us about your business</h2>
-        <p class="subtitle">This takes just 2 minutes. Your AI receptionist will be ready immediately.</p>
+        <div class="plan-pill">
+            ✓ {plan_label}
+            <a href="/pricing">change</a>
+        </div>
+        <p class="trial-note">✅ 14-day free trial — no credit card needed</p>
         <!-- ERROR -->
         <form method="POST" action="/signup">
+            <input type="hidden" name="plan" value="{plan}" />
             <label>Business Name *
                 <input type="text" name="business_name" placeholder="e.g. Sharma Properties" required />
             </label>
@@ -303,7 +334,7 @@ STEP1_HTML = """<!DOCTYPE html>
             <label>City
                 <input type="text" name="city" placeholder="e.g. Delhi, Mumbai, Bangalore" />
             </label>
-            <button type="submit" class="btn-primary">Continue</button>
+            <button type="submit" class="btn-primary">Continue →</button>
         </form>
     </div>
 </div>

@@ -62,24 +62,39 @@ async def create_razorpay_customer(
     return customer_id
 
 
+PLAN_FEES_INR = {"starter": 2499, "pro": 4999}
+STARTER_CALLS_LIMIT = 50
+
+
 async def create_subscription(client_id: str) -> dict:
     """
     Create a Razorpay subscription for an existing client.
 
     Creates a Razorpay customer first if one does not already exist.
     Persists the subscription ID to the clients table.
+    Uses the correct Razorpay plan ID based on the client's plan_type.
 
     Returns {"subscription_id": str, "short_url": str}.
     """
     db = get_supabase()
     result = (
         db.table("clients")
-        .select("agent_name, agent_email, agent_phone, razorpay_customer_id")
+        .select("agent_name, agent_email, agent_phone, razorpay_customer_id, plan_type")
         .eq("id", client_id)
         .single()
         .execute()
     )
     client = result.data
+
+    plan_type: str = client.get("plan_type") or "pro"
+
+    # Select the right Razorpay plan ID
+    if plan_type == "starter" and settings.RAZORPAY_STARTER_PLAN_ID:
+        plan_id = settings.RAZORPAY_STARTER_PLAN_ID
+    elif settings.RAZORPAY_PLAN_ID:
+        plan_id = settings.RAZORPAY_PLAN_ID
+    else:
+        raise ValueError("Razorpay plan ID not configured")
 
     cust_id: str | None = client.get("razorpay_customer_id")
     if not cust_id:
@@ -94,11 +109,11 @@ async def create_subscription(client_id: str) -> dict:
     sub = await asyncio.to_thread(
         rz.subscription.create,
         {
-            "plan_id": settings.RAZORPAY_PLAN_ID,
+            "plan_id": plan_id,
             "customer_id": cust_id,
             "total_count": 120,
             "customer_notify": 1,
-            "notes": {"client_id": client_id},
+            "notes": {"client_id": client_id, "plan_type": plan_type},
         },
     )
     sub_id: str = sub["id"]

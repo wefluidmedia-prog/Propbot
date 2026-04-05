@@ -84,11 +84,17 @@ async def billing_status(request: Request):
     client_id = _get_client_id_from_session(request)
     logger.info("Fetching billing status for client %s", client_id)
     from app.db.supabase_client import get_supabase
+    from app.services.billing_service import PLAN_FEES_INR, STARTER_CALLS_LIMIT
     db = get_supabase()
     result = db.table("clients").select(
-        "subscription_status, trial_ends_at, monthly_fee_inr, razorpay_subscription_id"
+        "subscription_status, trial_ends_at, monthly_fee_inr, razorpay_subscription_id, plan_type"
     ).eq("id", client_id).single().execute()
-    return result.data
+    data = result.data or {}
+    plan_type = data.get("plan_type") or "pro"
+    data["plan_type"] = plan_type
+    data["monthly_fee_inr"] = PLAN_FEES_INR.get(plan_type, 4999)
+    data["calls_limit"] = STARTER_CALLS_LIMIT if plan_type == "starter" else None
+    return data
 
 
 @router.post("/cancel")

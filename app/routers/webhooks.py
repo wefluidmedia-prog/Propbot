@@ -93,7 +93,7 @@ async def voice_webhook(request: Request):
 
     # Enforce subscription for tool calls (always let call_ended through for transcript storage)
     if event.event_type == "tool_call" and event.client_id:
-        from app.services.billing_service import check_subscription_active
+        from app.services.billing_service import check_subscription_active, STARTER_CALLS_LIMIT
         if not await check_subscription_active(event.client_id):
             logger.warning("Subscription inactive for client %s, rejecting tool call", event.client_id)
             first_tc_id = event.tool_calls[0]["tool_call_id"] if event.tool_calls else ""
@@ -101,6 +101,26 @@ async def voice_webhook(request: Request):
                 first_tc_id,
                 "Sorry, this service is currently unavailable. Please contact the business directly.",
             )
+
+        # Enforce 50 calls/month limit for Starter plan (active subscriptions only)
+        from app.db.supabase_client import get_supabase
+        db = get_supabase()
+        client_row = db.table("clients").select("plan_type, subscription_status").eq("id", event.client_id).single().execute().data
+        if (
+            client_row
+            and client_row.get("plan_type") == "starter"
+            and client_row.get("subscription_status") == "active"
+        ):
+            from datetime import datetime, timezone
+            month_prefix = datetime.now(timezone.utc).strftime("%Y-%m")
+            calls_count = db.table("conversations").select("id", count="exact").eq("client_id", event.client_id).like("created_at", f"{month_prefix}%").execute()
+            if (calls_count.count or 0) >= STARTER_CALLS_LIMIT:
+                logger.warning("Starter call limit reached for client %s", event.client_id)
+                first_tc_id = event.tool_calls[0]["tool_call_id"] if event.tool_calls else ""
+                return engine.build_tool_response(
+                    first_tc_id,
+                    "Sorry, this number has reached its monthly call limit. Please contact the business directly.",
+                )
 
     if event.event_type == "tool_call":
         return await _handle_tool_calls(engine, event)

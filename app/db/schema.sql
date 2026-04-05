@@ -159,3 +159,11 @@ ALTER TABLE clients ADD COLUMN IF NOT EXISTS razorpay_subscription_id TEXT;
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS razorpay_customer_id TEXT;
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS google_calendar_token JSONB;
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS setup_status TEXT DEFAULT 'provisioning';
+
+-- =========================
+-- MIGRATION: Pricing tiers
+-- =========================
+-- plan_type: 'starter' (₹2,499/mo, 50 calls/mo) | 'pro' (₹4,999/mo, unlimited)
+-- Default 'pro' — everyone starts on Pro trial, can choose Starter at subscribe time.
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS plan_type TEXT DEFAULT 'pro'
+    CHECK (plan_type IN ('starter', 'pro'));

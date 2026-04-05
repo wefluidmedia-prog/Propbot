@@ -338,7 +338,7 @@ async def get_usage(client_id: str = Depends(_get_client_id)):
         "minutes_this_month": minutes_month,
         "total_minutes": round(total_seconds_all / 60, 1),
         "estimated_cost_inr": estimated_cost_inr,
-        "subscription_fee_inr": 5000,
+        "subscription_fee_inr": 2499 if (db.table("clients").select("plan_type").eq("id", client_id).single().execute().data or {}).get("plan_type") == "starter" else 4999,
         "voice_leads_month": voice_leads,
         "chat_leads_month": chat_leads,
     }
@@ -1270,30 +1270,41 @@ function renderBilling(){
     var daysLeft = data.trial_ends_at
       ? Math.ceil((new Date(data.trial_ends_at)-new Date())/86400000) : null;
 
+    var planType = data.plan_type || 'pro';
+    var fee = data.monthly_fee_inr || (planType === 'starter' ? 2499 : 4999);
+    var feeStr = '₹' + fee.toLocaleString('en-IN');
+    var planLabel = planType === 'starter' ? 'Starter' : 'Pro';
+    var callsLimit = data.calls_limit;
+
     var html = '<div class="billing-box">' +
       '<h3>Billing &amp; Subscription</h3>' +
       '<div class="sub-label">Manage your PropBot subscription</div>' +
-      '<span class="billing-status-badge '+badgeClass+'">'+badgeLabel+'</span>';
+      '<span class="billing-status-badge '+badgeClass+'">'+badgeLabel+'</span>' +
+      ' <span style="background:#f1f5f9;color:#475569;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;">'+planLabel+' Plan</span>';
 
     if(status==='trial'){
-      html += '<div class="billing-amount">₹5,000</div>' +
+      html += '<div class="billing-amount">'+feeStr+'</div>' +
         '<div class="billing-period">per month after trial</div>';
       if(daysLeft!==null && daysLeft>0)
         html += '<div class="trial-info">⏳ '+daysLeft+' day'+(daysLeft===1?'':'s')+' remaining in your free trial.</div>';
       else if(daysLeft!==null && daysLeft<=0)
         html += '<div class="trial-info" style="color:#ef4444;">Your trial has expired.</div>';
-      html += '<br><button class="btn-subscribe" id="sub-btn">Subscribe Now — ₹5,000/month</button>';
+      if(callsLimit)
+        html += '<div class="trial-info">📞 Starter plan includes '+callsLimit+' calls/month. <a href="/pricing" target="_blank">Upgrade to Pro</a> for unlimited calls.</div>';
+      html += '<br><button class="btn-subscribe" id="sub-btn">Subscribe Now — '+feeStr+'/month</button>';
     } else if(status==='active'){
-      html += '<div class="billing-amount">₹5,000</div>' +
+      html += '<div class="billing-amount">'+feeStr+'</div>' +
         '<div class="billing-period">per month · Active</div>' +
-        '<div class="trial-info">Your subscription is active. Thank you!</div><br>' +
-        '<button class="btn-cancel-sub" id="cancel-btn">Cancel Subscription</button>';
+        '<div class="trial-info">Your subscription is active. Thank you!</div>';
+      if(callsLimit)
+        html += '<div class="trial-info">📞 '+callsLimit+' calls/month included. <a href="/pricing" target="_blank">Upgrade to Pro</a> for unlimited calls.</div>';
+      html += '<br><button class="btn-cancel-sub" id="cancel-btn">Cancel Subscription</button>';
     } else if(status==='paused'){
       html += '<div class="trial-info" style="color:#d97706;">Your subscription is paused.</div><br>' +
-        '<button class="btn-subscribe" id="sub-btn">Reactivate — ₹5,000/month</button>';
+        '<button class="btn-subscribe" id="sub-btn">Reactivate — '+feeStr+'/month</button>';
     } else {
       html += '<div class="trial-info" style="color:#ef4444;">Subscription cancelled.</div><br>' +
-        '<button class="btn-subscribe" id="sub-btn">Subscribe Again — ₹5,000/month</button>';
+        '<button class="btn-subscribe" id="sub-btn">Subscribe Again — '+feeStr+'/month</button>';
     }
 
     html += '</div>';
