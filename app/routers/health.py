@@ -22,7 +22,7 @@ LANDING_HTML = """<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PropBot — AI Receptionist for Indian Real Estate Agents</title>
-<meta name="description" content="PropBot - AI Receptionist for Indian Real Estate. Answers calls in Hindi & English 24/7, captures leads, books site visits. Rs 5,000/month. 14-day free trial.">
+<meta name="description" content="PropBot - AI Receptionist for Indian Real Estate. Answers calls in Hindi & English 24/7, captures leads, books site visits. From ₹2,499/month. 14-day free trial, no credit card.">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html { scroll-behavior: smooth; }
@@ -116,16 +116,27 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 /* Pricing */
 .pricing { padding: 80px 24px; text-align: center; }
 .pricing h2 { font-size: 32px; margin-bottom: 8px; }
-.pricing .sub { color: #64748b; margin-bottom: 36px; font-size: 15px; }
-.price-card { background: #fff; border: 2px solid #2563eb; border-radius: 16px; padding: 40px; max-width: 440px; margin: 0 auto 28px; }
-.price-amount { font-size: 52px; font-weight: 800; color: #1e293b; }
-.price-amount span { font-size: 18px; color: #64748b; font-weight: 400; }
-.price-trial { display: inline-block; margin: 12px 0 22px; padding: 6px 16px; background: #d1fae5; color: #065f46; border-radius: 20px; font-size: 14px; font-weight: 600; }
-.price-features { text-align: left; margin-bottom: 28px; }
-.price-features li { padding: 7px 0; font-size: 14px; color: #475569; list-style: none; }
-.price-features li::before { content: "\\2713"; color: #059669; font-weight: bold; margin-right: 10px; }
-.btn-price { display: block; width: 100%; padding: 15px; background: #2563eb; color: #fff; text-decoration: none; border-radius: 10px; font-size: 16px; font-weight: 600; border: none; cursor: pointer; transition: background 0.2s; }
+.pricing .sub { color: #64748b; margin-bottom: 40px; font-size: 15px; }
+.plans-row { display: flex; gap: 24px; max-width: 820px; margin: 0 auto 36px; justify-content: center; flex-wrap: wrap; }
+.price-card { background: #fff; border: 2px solid #e2e8f0; border-radius: 16px; padding: 36px 28px; flex: 1; min-width: 280px; max-width: 370px; text-align: left; position: relative; }
+.price-card.popular { border-color: #2563eb; box-shadow: 0 8px 32px rgba(37,99,235,0.12); }
+.popular-badge { position: absolute; top: -13px; left: 50%; transform: translateX(-50%); background: #2563eb; color: #fff; padding: 3px 18px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap; letter-spacing: 0.5px; }
+.plan-name { font-size: 18px; font-weight: 700; margin-bottom: 2px; }
+.plan-desc { font-size: 13px; color: #64748b; margin-bottom: 18px; }
+.price-amount { font-size: 44px; font-weight: 800; color: #1e293b; line-height: 1; }
+.price-amount .currency { font-size: 20px; font-weight: 600; vertical-align: top; margin-top: 8px; display: inline-block; }
+.price-amount span { font-size: 16px; color: #64748b; font-weight: 400; }
+.price-trial { display: inline-block; margin: 10px 0 20px; padding: 4px 14px; background: #d1fae5; color: #065f46; border-radius: 20px; font-size: 13px; font-weight: 600; }
+.price-features { margin-bottom: 24px; }
+.price-features li { padding: 6px 0; font-size: 14px; color: #475569; list-style: none; display: flex; align-items: flex-start; gap: 8px; }
+.price-features li .check { color: #059669; font-weight: bold; flex-shrink: 0; }
+.price-features li.muted { color: #94a3b8; }
+.btn-price { display: block; width: 100%; padding: 14px; background: #2563eb; color: #fff; text-decoration: none; border-radius: 10px; font-size: 15px; font-weight: 600; border: none; cursor: pointer; transition: background 0.2s; text-align: center; }
 .btn-price:hover { background: #1d4ed8; }
+.btn-price-outline { background: #fff; color: #2563eb; border: 2px solid #2563eb; }
+.btn-price-outline:hover { background: #eff6ff; }
+.pricing-note { font-size: 13px; color: #64748b; margin-bottom: 36px; }
+.pricing-note a { color: #2563eb; }
 .roi-box { max-width: 540px; margin: 0 auto; background: #ecfdf5; border-left: 4px solid #059669; border-radius: 8px; padding: 24px 28px; text-align: left; }
 .roi-box h3 { font-size: 16px; color: #065f46; margin-bottom: 12px; }
 .roi-table { width: 100%; font-size: 14px; border-collapse: collapse; margin-bottom: 12px; }
@@ -243,7 +254,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
     <table class="compare-table">
         <thead><tr><th></th><th>Human Receptionist</th><th>PropBot AI</th></tr></thead>
         <tbody>
-            <tr><td>Monthly Cost</td><td>&#8377;15,000 &ndash; &#8377;25,000</td><td>&#8377;5,000 (flat)</td></tr>
+            <tr><td>Monthly Cost</td><td>&#8377;15,000 &ndash; &#8377;25,000</td><td>&#8377;2,499 &ndash; &#8377;4,999</td></tr>
             <tr><td>Availability</td><td>9 AM &ndash; 6 PM, Mon-Sat</td><td>24/7/365. Never sick.</td></tr>
             <tr><td>Languages</td><td>1-2 languages</td><td>Hindi, English, Hinglish</td></tr>
             <tr><td>Response Time</td><td>Depends on mood</td><td>Instant. Every time.</td></tr>
@@ -340,33 +351,55 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 
 <!-- Pricing -->
 <section class="pricing" id="pricing">
-    <h2>One Simple Plan. No Hidden Fees.</h2>
-    <p class="sub">Sab kuch included. Koi surprise nahi.</p>
-    <div class="price-card">
-        <div class="price-amount">&#8377;5,000 <span>/month</span></div>
-        <div class="price-trial">14-day free trial</div>
-        <ul class="price-features">
-            <li>Unlimited AI voice calls</li>
-            <li>Website chat widget</li>
-            <li>Auto lead capture + instant alerts</li>
-            <li>Google Calendar site visit booking</li>
-            <li>Dashboard with call recordings &amp; transcripts</li>
-            <li>Hindi + English + Hinglish support</li>
-            <li>6 natural Indian AI voices</li>
-            <li>Email notifications for every lead</li>
-            <li>Dedicated phone number</li>
-        </ul>
-        <a href="/signup" class="btn-price">Start Free 14-Day Trial</a>
+    <h2>Simple, Honest Pricing</h2>
+    <p class="sub">14-day free trial on both plans &mdash; no credit card needed.</p>
+    <div class="plans-row">
+        <!-- Starter -->
+        <div class="price-card">
+            <div class="plan-name">Starter</div>
+            <div class="plan-desc">For solo brokers starting with AI</div>
+            <div class="price-amount"><span class="currency">&#8377;</span>2,499<span> /month</span></div>
+            <div class="price-trial">14-day free trial</div>
+            <ul class="price-features">
+                <li><span class="check">&#10003;</span> AI voice receptionist (Priya)</li>
+                <li><span class="check">&#10003;</span> Hindi + Hinglish conversations</li>
+                <li><span class="check">&#10003;</span> Lead alerts to your WhatsApp</li>
+                <li><span class="check">&#10003;</span> Lead dashboard</li>
+                <li><span class="check">&#10003;</span> Up to 50 calls / month</li>
+                <li class="muted"><span>&#8212;</span> Chat widget for website</li>
+                <li class="muted"><span>&#8212;</span> Priority support</li>
+            </ul>
+            <a href="/signup?plan=starter" class="btn-price btn-price-outline">Start Free Trial</a>
+        </div>
+        <!-- Pro -->
+        <div class="price-card popular">
+            <div class="popular-badge">MOST POPULAR</div>
+            <div class="plan-name">Pro</div>
+            <div class="plan-desc">For serious brokers who can&rsquo;t miss a lead</div>
+            <div class="price-amount"><span class="currency">&#8377;</span>4,999<span> /month</span></div>
+            <div class="price-trial">14-day free trial</div>
+            <ul class="price-features">
+                <li><span class="check">&#10003;</span> AI voice receptionist (Priya)</li>
+                <li><span class="check">&#10003;</span> Hindi + Hinglish conversations</li>
+                <li><span class="check">&#10003;</span> Lead alerts to your WhatsApp</li>
+                <li><span class="check">&#10003;</span> Lead dashboard</li>
+                <li><span class="check">&#10003;</span> <strong>Unlimited calls</strong></li>
+                <li><span class="check">&#10003;</span> Chat widget for website</li>
+                <li><span class="check">&#10003;</span> Priority onboarding support</li>
+            </ul>
+            <a href="/signup?plan=pro" class="btn-price">Start Free Trial</a>
+        </div>
     </div>
+    <p class="pricing-note">Not sure which plan? <a href="/pricing">See full comparison</a> &mdash; or start with Pro free for 14 days and decide later.</p>
     <div class="roi-box">
-        <h3>Your ROI Math</h3>
+        <h3>Your ROI Math (Pro plan)</h3>
         <table class="roi-table">
-            <tr><td></td><td><strong>Human</strong></td><td><strong>PropBot</strong></td></tr>
-            <tr><td>Monthly cost</td><td>&#8377;20,000</td><td>&#8377;5,000</td></tr>
-            <tr><td>Annual cost</td><td>&#8377;2,40,000</td><td>&#8377;60,000</td></tr>
+            <tr><td></td><td><strong>Human Receptionist</strong></td><td><strong>PropBot Pro</strong></td></tr>
+            <tr><td>Monthly cost</td><td>&#8377;20,000</td><td>&#8377;4,999</td></tr>
+            <tr><td>Annual cost</td><td>&#8377;2,40,000</td><td>&#8377;59,988</td></tr>
             <tr class="save"><td>You save</td><td></td><td>&#8377;1,80,000/year</td></tr>
         </table>
-        <p class="roi-note">Plus: no leaves, no late arrivals, no training costs, 24/7 availability. One extra deal from a 2 AM lead pays for PropBot for 3 years.</p>
+        <p class="roi-note">Plus: no leaves, no late arrivals, no training. One deal from a 2 AM missed call pays for PropBot Pro for 3 months.</p>
     </div>
 </section>
 
@@ -378,7 +411,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
         <details><summary>Does it work in Hindi?</summary><div class="faq-body">Yes! PropBot speaks fluent Hindi, English, and Hinglish. It understands mixed-language queries naturally &mdash; just like how real conversations happen in India.</div></details>
         <details><summary>What if the caller wants to talk to me directly?</summary><div class="faq-body">PropBot captures their details and sends you an instant email alert. You can also set up callback requests through the chat widget. You're always in control.</div></details>
         <details><summary>How long does setup take?</summary><div class="faq-body">Under 5 minutes. Sign up, add your property details, choose a voice &mdash; and your AI receptionist is live. No technical skills needed.</div></details>
-        <details><summary>What happens after the 14-day trial?</summary><div class="faq-body">Your subscription continues at &#8377;5,000/month via Razorpay. Cancel anytime from the dashboard &mdash; no lock-in, no cancellation fees.</div></details>
+        <details><summary>What happens after the 14-day trial?</summary><div class="faq-body">Your subscription continues at &#8377;2,499/month (Starter) or &#8377;4,999/month (Pro) via Razorpay. Cancel anytime from the dashboard &mdash; no lock-in, no cancellation fees.</div></details>
         <details><summary>Can I use it with my existing phone number?</summary><div class="faq-body">PropBot provides you a dedicated phone number. You can forward calls to it from your existing number, or share the PropBot number directly with clients.</div></details>
         <details><summary>Is my data safe?</summary><div class="faq-body">All data is stored securely. Call recordings, transcripts, and lead information are only accessible through your password-protected dashboard.</div></details>
         <details><summary>What if I need to change my property listings?</summary><div class="faq-body">Update anytime from your dashboard. Your AI assistant learns the changes instantly &mdash; no waiting, no retraining.</div></details>
@@ -389,7 +422,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-
 <section class="final-cta">
     <h2>Your Competitors Are Already Going AI. Don't Get Left Behind.</h2>
     <p>Every missed call is a missed deal. Every missed deal is lakhs lost. Start your free trial today and let PropBot handle your calls while you close deals.</p>
-    <a href="/signup" class="btn-final">Start My Free Trial</a>
+    <a href="/signup?plan=pro" class="btn-final">Start My Free Trial</a>
     <div class="final-sub"><a href="/dashboard">or Login to Dashboard</a></div>
 </section>
 
