@@ -157,7 +157,8 @@ async def get_profile(client_id: str = Depends(_get_client_id)):
     result = db.table("clients").select(
         "id, business_name, agent_name, agent_email, agent_phone, city, specialty, "
         "assistant_persona_name, voice_gender, voice_id, subscription_status, "
-        "trial_ends_at, exotel_number, setup_status, bolna_agent_id, created_at, first_message"
+        "trial_ends_at, exotel_number, setup_status, bolna_agent_id, created_at, first_message, "
+        "knowledge_base"
     ).eq("id", client_id).single().execute()
     return result.data
 
@@ -168,6 +169,7 @@ async def update_profile(request: Request, client_id: str = Depends(_get_client_
     allowed = {
         "business_name", "agent_name", "agent_phone", "city", "specialty",
         "assistant_persona_name", "voice_gender", "voice_id", "first_message",
+        "knowledge_base",
     }
     update_data = {k: v for k, v in body.items() if k in allowed and v is not None}
     if not update_data:
@@ -503,18 +505,18 @@ a{color:inherit;text-decoration:none;}
 
 /* ── Shell ── */
 .shell{display:flex;min-height:100vh;}
-.sidebar{width:220px;background:#1e293b;display:flex;flex-direction:column;flex-shrink:0;}
-.sidebar-logo{padding:24px 20px;font-size:20px;font-weight:800;color:#fff;border-bottom:1px solid rgba(255,255,255,0.08);}
-.sidebar-logo span{color:#60a5fa;}
+.sidebar{width:220px;background:#111827;display:flex;flex-direction:column;flex-shrink:0;}
+.sidebar-logo{padding:24px 20px;font-size:20px;font-weight:800;color:#fff;border-bottom:1px solid rgba(255,255,255,0.07);letter-spacing:-0.5px;}
+.sidebar-logo span{color:#FF5722;}
 .sidebar-nav{flex:1;padding:12px 0;}
-.nav-item{display:flex;align-items:center;gap:10px;padding:11px 20px;font-size:14px;font-weight:500;color:#94a3b8;cursor:pointer;border-left:3px solid transparent;transition:all .15s;}
-.nav-item:hover{color:#e2e8f0;background:rgba(255,255,255,0.05);}
-.nav-item.active{color:#fff;background:rgba(37,99,235,0.25);border-left-color:#3b82f6;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:11px 20px;font-size:14px;font-weight:500;color:#9CA3AF;cursor:pointer;border-left:3px solid transparent;transition:all .15s;}
+.nav-item:hover{color:#F9FAFB;background:rgba(255,255,255,0.05);}
+.nav-item.active{color:#fff;background:rgba(255,87,34,0.18);border-left-color:#FF5722;}
 .nav-item .icon{font-size:16px;width:20px;text-align:center;}
-.sidebar-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,0.08);}
-.sidebar-user{font-size:12px;color:#64748b;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.btn-logout-side{width:100%;padding:8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#94a3b8;font-size:13px;cursor:pointer;transition:all .15s;}
-.btn-logout-side:hover{background:rgba(255,255,255,0.12);color:#e2e8f0;}
+.sidebar-footer{padding:16px 20px;border-top:1px solid rgba(255,255,255,0.07);}
+.sidebar-user{font-size:12px;color:#6B7280;margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.btn-logout-side{width:100%;padding:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.09);border-radius:6px;color:#9CA3AF;font-size:13px;cursor:pointer;transition:all .15s;}
+.btn-logout-side:hover{background:rgba(255,255,255,0.1);color:#F9FAFB;}
 
 .main{flex:1;display:flex;flex-direction:column;min-width:0;}
 .topbar{background:#fff;border-bottom:1px solid #e2e8f0;padding:0 28px;height:60px;display:flex;align-items:center;justify-content:space-between;}
@@ -787,6 +789,7 @@ function renderShell(){
     {id:'callbacks',icon:'🔔', label:'Callbacks'},
     {id:'usage',    icon:'📊', label:'Usage & Cost'},
     {id:'assistant',icon:'🤖', label:'AI Assistant'},
+    {id:'listings', icon:'🏠', label:'My Listings'},
     {id:'widget',   icon:'💬', label:'Chat Widget'},
     {id:'billing',  icon:'💳', label:'Billing'},
     {id:'calendar', icon:'📅', label:'Calendar'},
@@ -840,6 +843,7 @@ function switchTab(tab){
   else if(tab==='callbacks') renderCallbacks();
   else if(tab==='usage')     renderUsage();
   else if(tab==='assistant') renderAssistant();
+  else if(tab==='listings')  renderListings();
   else if(tab==='widget')    renderWidget();
   else if(tab==='billing')   renderBilling();
   else if(tab==='calendar')  renderCalendar();
@@ -1168,6 +1172,52 @@ function renderAssistant(){
       btn.disabled=false; btn.textContent='Save Changes';
       alert('Failed to save. Please try again.');
     });
+  });
+}
+
+/* ══════════════════════════════════════════════
+   LISTINGS TAB
+══════════════════════════════════════════════ */
+function renderListings(){
+  var c = document.getElementById('content');
+  c.innerHTML = '<div class="section-card"><p style="color:#6B7280;font-size:14px;">Loading listings...</p></div>';
+  api('/dashboard/api/me').then(function(data){
+    var kb = data.knowledge_base || '';
+    c.innerHTML =
+      '<div class="section-card">' +
+        '<h2 style="font-size:18px;font-weight:700;margin-bottom:6px;">My Property Listings</h2>' +
+        '<p style="font-size:14px;color:#6B7280;margin-bottom:20px;line-height:1.55;">Your AI assistant uses this to answer buyer questions. Update anytime — changes take effect instantly.</p>' +
+        '<div style="background:rgba(255,87,34,0.05);border:1px solid rgba(255,87,34,0.2);border-radius:10px;padding:14px 16px;margin-bottom:16px;font-size:13px;color:#374151;line-height:1.6;">' +
+          '<strong style="color:#FF5722;">Tip:</strong> Use <code style="background:rgba(255,87,34,0.1);color:#E64A19;padding:1px 5px;border-radius:4px;">##</code> for each property name, then add details on separate lines. The more detail, the better your AI answers.' +
+        '</div>' +
+        '<textarea id="kb-input" style="width:100%;min-height:360px;padding:14px;border:1.5px solid #E5E7EB;border-radius:10px;font-size:13px;font-family:monospace;line-height:1.65;resize:vertical;background:#FAFAF8;color:#111827;transition:all .15s;" ' +
+          'onfocus="this.style.borderColor=\'#FF5722\';this.style.boxShadow=\'0 0 0 3px rgba(255,87,34,0.1)\'" ' +
+          'onblur="this.style.borderColor=\'#E5E7EB\';this.style.boxShadow=\'none\'">' + esc(kb) + '</textarea>' +
+        '<div style="display:flex;align-items:center;gap:12px;margin-top:16px;">' +
+          '<button id="kb-save" onclick="saveListings()" style="padding:13px 32px;background:#FF5722;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(255,87,34,0.3);transition:all .2s;">Save Listings</button>' +
+          '<span id="kb-status" style="font-size:13px;color:#6B7280;"></span>' +
+        '</div>' +
+      '</div>';
+  });
+}
+function saveListings(){
+  var btn = document.getElementById('kb-save');
+  var status = document.getElementById('kb-status');
+  var kb = document.getElementById('kb-input').value.trim();
+  if(!kb){ status.textContent = 'Please add at least some property details.'; status.style.color='#EF4444'; return; }
+  btn.disabled = true; btn.textContent = 'Saving...';
+  status.textContent = ''; status.style.color='#6B7280';
+  fetch('/dashboard/api/me', {
+    method:'PATCH',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({knowledge_base: kb})
+  }).then(function(r){ return r.json(); }).then(function(){
+    btn.disabled = false; btn.textContent = 'Save Listings';
+    status.textContent = '✓ Saved successfully'; status.style.color='#10B981';
+    setTimeout(function(){ status.textContent=''; }, 3000);
+  }).catch(function(){
+    btn.disabled = false; btn.textContent = 'Save Listings';
+    status.textContent = 'Save failed — please try again'; status.style.color='#EF4444';
   });
 }
 
