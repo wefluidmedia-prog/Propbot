@@ -83,7 +83,7 @@ async def signup_step1(request: Request, plan: str = Query(default="pro")):
                     return RedirectResponse("/signup/step2", status_code=302)
         except Exception:
             pass  # If DB query fails (e.g. column missing), just show the form
-    return HTMLResponse(_build_step1_html(plan))
+    return HTMLResponse(_build_step1_html(plan).replace("<!-- __GA__ -->", _ga_snippet()))
 
 
 @router.post("")
@@ -100,7 +100,7 @@ async def signup_step1_submit(request: Request):
     plan = plan if plan in ("starter", "pro") else "pro"
 
     if not all([business_name, agent_name, agent_email, agent_phone]):
-        return HTMLResponse(_build_step1_html(plan).replace("<!-- ERROR -->", '<p class="error">Please fill all required fields.</p>'))
+        return HTMLResponse(_build_step1_html(plan).replace("<!-- ERROR -->", '<p class="error">Please fill all required fields.</p>').replace("<!-- __GA__ -->", _ga_snippet()))
 
     # Check if email already exists
     db = get_supabase()
@@ -108,7 +108,7 @@ async def signup_step1_submit(request: Request):
         existing = db.table("clients").select("id").eq("agent_email", agent_email).limit(1).execute()
     except Exception as e:
         logger.error("DB error checking email: %s", e)
-        return HTMLResponse(_build_step1_html(plan).replace("<!-- ERROR -->", '<p class="error">Database error. Please try again.</p>'))
+        return HTMLResponse(_build_step1_html(plan).replace("<!-- ERROR -->", '<p class="error">Database error. Please try again.</p>').replace("<!-- __GA__ -->", _ga_snippet()))
 
     if existing.data:
         # Resume existing signup
@@ -160,7 +160,7 @@ async def signup_step2(request: Request):
     client_id = _get_client_from_session(request)
     if not client_id:
         return RedirectResponse("/signup", status_code=302)
-    return HTMLResponse(_build_step2_html())
+    return HTMLResponse(_build_step2_html().replace("<!-- __GA__ -->", _ga_snippet()))
 
 
 @router.post("/step2")
@@ -309,7 +309,7 @@ def _build_step1_html(plan: str = "pro") -> str:
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sign Up — PropBot</title>
-{_ga_snippet()}
+<!-- __GA__ -->
 <style>
 {_SHARED_CSS}
 .plan-pill {{
@@ -393,7 +393,7 @@ def _build_step2_html():
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Choose Voice — PropBot</title>
-{_ga_snippet()}
+<!-- __GA__ -->
 <style>
 {_SHARED_CSS}
 {_STEP2_CSS}
