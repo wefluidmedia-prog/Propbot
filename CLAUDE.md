@@ -24,8 +24,9 @@ FastAPI + Supabase (PostgreSQL) + Bolna.ai (voice) + Exotel (telephony) + Claude
 - Always push to origin after committing — Render auto-deploys on push to main
 
 ## Deployment (Render)
-- Live URL: https://propbot.co.in (custom domain)
-- Render subdomain: https://propbot-3wrp.onrender.com (disabled — use custom domain)
+- Plan: Render Starter (paid) — always-on, no cold starts, no self-ping needed
+- Live URL: https://propbot.co.in (custom domain, purchased)
+- Render subdomain: https://propbot-3wrp.onrender.com — DISABLED (custom domain only)
 - Auto-deploys on push to main branch
 - Health check: `curl https://propbot.co.in/health`
 - Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
