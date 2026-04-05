@@ -38,6 +38,23 @@ async def root():
     """Landing page — marketing site."""
     html = LANDING_HTML.replace("<!-- __GA__ -->", _ga_snippet())
     html = html.replace("<!-- __OG__ -->", _og_tags())
+
+    # WhatsApp floating button + footer link (only if configured)
+    wa = settings.WHATSAPP_NUMBER
+    if wa:
+        wa_url = f"https://wa.me/91{wa}?text=Hi%20I%27m%20interested%20in%20PropBot"
+        wa_float = (
+            f'<a class="wa-float" href="{wa_url}" target="_blank" rel="noopener">'
+            '<svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.625.846 5.059 2.284 7.034L.789 23.492a.5.5 0 00.611.611l4.458-1.495A11.952 11.952 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-2.317 0-4.46-.768-6.183-2.064l-.432-.334-3.156 1.058 1.058-3.156-.334-.432A9.955 9.955 0 012 12C2 6.486 6.486 2 12 2s10 4.486 10 10-4.486 10-10 10z"/></svg>'
+            '</a>'
+        )
+        wa_footer = f'<a href="{wa_url}" target="_blank" rel="noopener">WhatsApp us</a>'
+    else:
+        wa_float = ""
+        wa_footer = ""
+
+    html = html.replace("<!-- __WHATSAPP_FLOAT__ -->", wa_float)
+    html = html.replace("<!-- __WHATSAPP_FOOTER__ -->", wa_footer)
     return html
 
 
@@ -45,6 +62,40 @@ async def root():
 async def health():
     """Health check endpoint. Also used as self-ping target to keep Render alive."""
     return {"status": "ok", "service": "propbot"}
+
+
+@router.post("/contact")
+async def contact_form(request):
+    """Receive contact form submission and email it to the founder."""
+    import asyncio
+    body = await request.json()
+    name = body.get("name", "").strip()
+    phone = body.get("phone", "").strip()
+    email = body.get("email", "").strip()
+    message = body.get("message", "").strip()
+
+    if not name or not phone or not message:
+        return {"status": "error", "message": "Please fill all required fields."}
+
+    if settings.SMTP_EMAIL:
+        from app.services.alert_service import _send_email
+        try:
+            await asyncio.to_thread(
+                _send_email,
+                to=settings.SMTP_EMAIL,
+                subject=f"PropBot Inquiry from {name}",
+                body=(
+                    f"<h3>New inquiry from PropBot website</h3>"
+                    f"<p><strong>Name:</strong> {name}</p>"
+                    f"<p><strong>Phone:</strong> {phone}</p>"
+                    f"<p><strong>Email:</strong> {email or 'not provided'}</p>"
+                    f"<p><strong>Message:</strong><br>{message}</p>"
+                ),
+            )
+        except Exception:
+            pass  # Best-effort — don't fail the response
+
+    return {"status": "ok"}
 
 
 LANDING_HTML = """<!DOCTYPE html>
@@ -361,6 +412,38 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
   .demo-stats{grid-template-columns:1fr 1fr;}
   .trust-bar-inner{gap:14px;}
 }
+
+/* Social proof */
+.social-proof{padding:64px 40px;background:#fff;border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+.sp-inner{max-width:1000px;margin:0 auto;text-align:center;}
+.sp-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:32px;}
+.sp-card{padding:28px;background:var(--bg);border-radius:var(--r);border:1px solid var(--border);}
+.sp-card .sp-icon{font-size:32px;margin-bottom:12px;}
+.sp-card h3{font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;}
+.sp-card p{font-size:14px;color:var(--muted);line-height:1.6;}
+@media(max-width:700px){.sp-cards{grid-template-columns:1fr;}}
+
+/* Contact form */
+.contact-section{padding:64px 40px;background:var(--bg2);}
+.contact-inner{max-width:560px;margin:0 auto;}
+.contact-inner h2{font-size:28px;font-weight:800;letter-spacing:-0.5px;text-align:center;margin-bottom:8px;}
+.contact-sub{text-align:center;color:var(--muted);font-size:15px;margin-bottom:28px;}
+.contact-form{display:flex;flex-direction:column;gap:14px;}
+.contact-form input,.contact-form textarea{padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-family:inherit;background:#fff;}
+.contact-form input:focus,.contact-form textarea:focus{outline:none;border-color:var(--orange);box-shadow:0 0 0 3px rgba(255,87,34,.1);}
+.contact-form textarea{min-height:100px;resize:vertical;}
+.contact-form .row{display:flex;gap:14px;}
+.contact-form .row input{flex:1;}
+.btn-contact{padding:14px;background:var(--orange);color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;transition:all .2s;font-family:inherit;}
+.btn-contact:hover{background:var(--orange-dark);}
+.btn-contact:disabled{opacity:.6;cursor:not-allowed;}
+.contact-msg{text-align:center;margin-top:12px;font-size:14px;color:#059669;display:none;}
+@media(max-width:600px){.contact-form .row{flex-direction:column;}}
+
+/* WhatsApp floating button */
+.wa-float{position:fixed;bottom:24px;right:24px;z-index:999;width:56px;height:56px;background:#25D366;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(37,211,102,.4);transition:transform .2s;text-decoration:none;}
+.wa-float:hover{transform:scale(1.1);}
+.wa-float svg{width:28px;height:28px;fill:#fff;}
 </style>
 </head>
 <body>
@@ -622,6 +705,19 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
 </div>
 </section>
 
+<!-- SOCIAL PROOF -->
+<section class="social-proof">
+<div class="sp-inner">
+  <div class="sec-label">Built for India</div>
+  <h2 class="sec-h2">Why Indian Real Estate Agents Choose PropBot</h2>
+  <div class="sp-cards">
+    <div class="sp-card"><div class="sp-icon">&#127470;&#127475;</div><h3>Hindi + English + Hinglish</h3><p>Your AI speaks the way your clients do. Fluent in Hindi, English, and natural Hinglish &mdash; so every caller feels at home.</p></div>
+    <div class="sp-card"><div class="sp-icon">&#127968;</div><h3>Made for Indian Real Estate</h3><p>Understands BHK, carpet area, RERA, possession dates, and how Indian buyers actually talk about property. Not a generic chatbot.</p></div>
+    <div class="sp-card"><div class="sp-icon">&#128176;</div><h3>Save &#8377;1.5L+ Per Year</h3><p>Replace a full-time receptionist for a fraction of the cost. Works 24/7 including Sundays and holidays. Never takes leave.</p></div>
+  </div>
+</div>
+</section>
+
 <!-- HOW IT WORKS -->
 <section class="how" id="how">
 <div class="how-inner">
@@ -727,6 +823,24 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
 </div>
 </section>
 
+<!-- CONTACT FORM -->
+<section class="contact-section" id="contact">
+<div class="contact-inner">
+  <h2>Have Questions?</h2>
+  <p class="contact-sub">Drop us a message and we'll get back to you within hours.</p>
+  <form class="contact-form" id="contactForm" onsubmit="return submitContact(event)">
+    <div class="row">
+      <input name="name" placeholder="Your name" required>
+      <input name="phone" placeholder="Phone / WhatsApp" required>
+    </div>
+    <input name="email" type="email" placeholder="Email (optional)">
+    <textarea name="message" placeholder="What would you like to know?" required></textarea>
+    <button type="submit" class="btn-contact" id="contactBtn">Send Message</button>
+  </form>
+  <div class="contact-msg" id="contactMsg">Thanks! We'll get back to you shortly.</div>
+</div>
+</section>
+
 <!-- FOOTER -->
 <footer class="footer">
 <div class="footer-inner">
@@ -750,6 +864,8 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
   <div class="fcol">
     <h4>Contact</h4>
     <a href="mailto:daanzack8@gmail.com">daanzack8@gmail.com</a>
+    <!-- __WHATSAPP_FOOTER__ -->
+    <a href="#contact">Send a Message</a>
   </div>
 </div>
 <div class="footer-bot">
@@ -769,6 +885,24 @@ tog.addEventListener('click',function(){
   s[2].style.transform=open?'translateY(-7px) rotate(-45deg)':'';
 });
 document.querySelectorAll('.nav-links a').forEach(function(a){a.addEventListener('click',function(){lnk.classList.remove('open');tog.querySelectorAll('span').forEach(function(s){s.style.transform='';s.style.opacity='1';});});});
+</script>
+<!-- __WHATSAPP_FLOAT__ -->
+
+<script>
+function submitContact(e){
+  e.preventDefault();
+  var f=document.getElementById('contactForm'),b=document.getElementById('contactBtn');
+  b.disabled=true;b.textContent='Sending...';
+  var d=new FormData(f);
+  fetch('/contact',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:d.get('name'),phone:d.get('phone'),email:d.get('email')||'',message:d.get('message')})
+  }).then(function(r){return r.json()}).then(function(){
+    document.getElementById('contactMsg').style.display='block';
+    f.reset();b.textContent='Sent!';
+    setTimeout(function(){b.disabled=false;b.textContent='Send Message';},3000);
+  }).catch(function(){b.disabled=false;b.textContent='Send Message';alert('Error sending message. Please try again.');});
+  return false;
+}
 </script>
 </body>
 </html>
