@@ -1308,6 +1308,15 @@ function renderBilling(){
         else alert('Could not create subscription. Please try again.');
       }).catch(function(e){ subBtn.disabled=false; subBtn.textContent='Subscribe Now'; alert('Error: ' + (e && e.detail ? e.detail : 'Could not create subscription. Please try again.')); });
     };
+
+    var cancelBtn = document.getElementById('cancel-btn');
+    if(cancelBtn) cancelBtn.onclick = function(){
+      if(!confirm('Cancel your subscription? Your AI receptionist will stop working at period end.')) return;
+      this.disabled=true;
+      api('/api/billing/cancel', {method:'POST'}).then(function(){
+        renderBilling();
+      }).catch(function(){ alert('Error cancelling subscription.'); });
+    };
   }).catch(function(){
     c.innerHTML = '<div class="empty"><div class="e-icon">💳</div><h3>Billing unavailable</h3><p>Please try again later.</p></div>';
   });
@@ -1327,17 +1336,6 @@ function selectBillingPlan(plan){
   }).then(function(){
     var btn = document.getElementById('sub-btn');
     if(btn) btn.textContent = 'Subscribe Now — '+fees[plan]+'/month';
-  });
-}
-
-    var cancelBtn = document.getElementById('cancel-btn');
-    if(cancelBtn) cancelBtn.onclick = function(){
-      if(!confirm('Cancel your subscription? Your AI receptionist will stop working at period end.')) return;
-      this.disabled=true;
-      api('/api/billing/cancel', {method:'POST'}).then(function(){
-        renderBilling();
-      }).catch(function(){ alert('Error cancelling subscription.'); });
-    };
   });
 }
 
