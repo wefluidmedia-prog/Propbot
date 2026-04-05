@@ -169,7 +169,7 @@ async def update_profile(request: Request, client_id: str = Depends(_get_client_
     allowed = {
         "business_name", "agent_name", "agent_phone", "city", "specialty",
         "assistant_persona_name", "voice_gender", "voice_id", "first_message",
-        "knowledge_base",
+        "knowledge_base", "plan_type",
     }
     update_data = {k: v for k, v in body.items() if k in allowed and v is not None}
     if not update_data:
@@ -686,9 +686,12 @@ a{color:inherit;text-decoration:none;}
 .badge-cancelled{background:#fee2e2;color:#991b1b;}
 .billing-amount{font-size:32px;font-weight:700;color:#1e293b;margin-bottom:4px;}
 .billing-period{color:#64748b;font-size:14px;margin-bottom:24px;}
-.btn-subscribe{padding:14px 28px;background:#FF5722;color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;}
+.btn-subscribe{width:100%;padding:14px 28px;background:#FF5722;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;}
 .btn-subscribe:hover{background:#E64A19;}
 .btn-subscribe:disabled{opacity:.6;cursor:not-allowed;}
+.plan-pick{border:2px solid #E5E7EB;border-radius:12px;padding:14px 16px;cursor:pointer;transition:all .15s;background:#FAFAF8;}
+.plan-pick:hover{border-color:rgba(255,87,34,.4);background:#fff;}
+.plan-pick-sel{border-color:#FF5722;background:rgba(255,87,34,.04);box-shadow:0 0 0 3px rgba(255,87,34,.1);}
 .btn-cancel-sub{padding:10px 20px;background:#fff;color:#ef4444;border:1px solid #fca5a5;border-radius:8px;font-size:14px;cursor:pointer;margin-top:12px;}
 .btn-cancel-sub:hover{background:#fef2f2;}
 .trial-info{color:#64748b;font-size:13px;margin-top:16px;}
@@ -1332,16 +1335,28 @@ function renderBilling(){
       '<span class="billing-status-badge '+badgeClass+'">'+badgeLabel+'</span>' +
       ' <span style="background:#f1f5f9;color:#475569;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;">'+planLabel+' Plan</span>';
 
-    if(status==='trial'){
-      html += '<div class="billing-amount">'+feeStr+'</div>' +
-        '<div class="billing-period">per month after trial</div>';
+    if(status==='trial' || status==='cancelled'){
+      // Plan picker
+      html +=
+        '<div style="margin:20px 0 6px;font-size:13px;font-weight:600;color:#374151;">Choose your plan:</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;" id="plan-picker">' +
+          '<div class="plan-pick'+(planType==='starter'?' plan-pick-sel':'')+'" data-plan="starter" onclick="selectBillingPlan(\'starter\')">' +
+            '<div style="font-size:16px;font-weight:800;">₹2,499<span style="font-size:12px;font-weight:500;color:#6B7280;">/mo</span></div>' +
+            '<div style="font-size:13px;font-weight:600;margin:4px 0 2px;">Starter</div>' +
+            '<div style="font-size:12px;color:#6B7280;">50 calls/month</div>' +
+          '</div>' +
+          '<div class="plan-pick'+(planType==='pro'?' plan-pick-sel':'')+'" data-plan="pro" onclick="selectBillingPlan(\'pro\')">' +
+            '<div style="font-size:16px;font-weight:800;">₹4,999<span style="font-size:12px;font-weight:500;color:#6B7280;">/mo</span></div>' +
+            '<div style="font-size:13px;font-weight:600;margin:4px 0 2px;">Pro</div>' +
+            '<div style="font-size:12px;color:#6B7280;">Unlimited calls</div>' +
+          '</div>' +
+        '</div>';
+
       if(daysLeft!==null && daysLeft>0)
         html += '<div class="trial-info">⏳ '+daysLeft+' day'+(daysLeft===1?'':'s')+' remaining in your free trial.</div>';
       else if(daysLeft!==null && daysLeft<=0)
         html += '<div class="trial-info" style="color:#ef4444;">Your trial has expired.</div>';
-      if(callsLimit)
-        html += '<div class="trial-info">📞 Starter plan includes '+callsLimit+' calls/month. <a href="/pricing" target="_blank">Upgrade to Pro</a> for unlimited calls.</div>';
-      html += '<br><button class="btn-subscribe" id="sub-btn">Subscribe Now — '+feeStr+'/month</button>';
+      html += '<button class="btn-subscribe" id="sub-btn">Subscribe Now — '+feeStr+'/month</button>';
     } else if(status==='active'){
       html += '<div class="billing-amount">'+feeStr+'</div>' +
         '<div class="billing-period">per month · Active</div>' +
@@ -1366,8 +1381,29 @@ function renderBilling(){
       api('/api/billing/subscribe', {method:'POST'}).then(function(res){
         if(res.checkout_url) window.location.href=res.checkout_url;
         else alert('Could not create subscription. Please try again.');
-      }).catch(function(e){ alert('Error: ' + (e && e.detail ? e.detail : 'Could not create subscription. Please try again.')); });
+      }).catch(function(e){ subBtn.disabled=false; subBtn.textContent='Subscribe Now'; alert('Error: ' + (e && e.detail ? e.detail : 'Could not create subscription. Please try again.')); });
     };
+  }).catch(function(){
+    c.innerHTML = '<div class="empty"><div class="e-icon">💳</div><h3>Billing unavailable</h3><p>Please try again later.</p></div>';
+  });
+}
+
+function selectBillingPlan(plan){
+  // Update UI selection
+  document.querySelectorAll('.plan-pick').forEach(function(el){
+    el.classList.toggle('plan-pick-sel', el.dataset.plan === plan);
+  });
+  // Persist plan_type to DB, then update button label
+  var fees = {starter:'₹2,499', pro:'₹4,999'};
+  fetch('/dashboard/api/me', {
+    method:'PATCH',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({plan_type: plan})
+  }).then(function(){
+    var btn = document.getElementById('sub-btn');
+    if(btn) btn.textContent = 'Subscribe Now — '+fees[plan]+'/month';
+  });
+}
 
     var cancelBtn = document.getElementById('cancel-btn');
     if(cancelBtn) cancelBtn.onclick = function(){
@@ -1377,8 +1413,6 @@ function renderBilling(){
         renderBilling();
       }).catch(function(){ alert('Error cancelling subscription.'); });
     };
-  }).catch(function(){
-    c.innerHTML = '<div class="empty"><div class="e-icon">💳</div><h3>Billing unavailable</h3><p>Please try again later.</p></div>';
   });
 }
 
