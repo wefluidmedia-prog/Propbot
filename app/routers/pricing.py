@@ -8,6 +8,8 @@ CTAs redirect to /signup?plan=starter or /signup?plan=pro.
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
+from app.config import settings
+
 router = APIRouter()
 
 _PRICING_HTML = """<!DOCTYPE html>
@@ -16,6 +18,7 @@ _PRICING_HTML = """<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Pricing — PropBot AI Receptionist</title>
+<!-- __GA__ -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -193,4 +196,12 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 @router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
 async def pricing_page():
-    return HTMLResponse(_PRICING_HTML)
+    gid = settings.GA_MEASUREMENT_ID
+    ga = ""
+    if gid:
+        ga = (
+            f'<script async src="https://www.googletagmanager.com/gtag/js?id={gid}"></script>\n'
+            f"<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments);}}"
+            f"gtag('js',new Date());gtag('config','{gid}');</script>\n"
+        )
+    return HTMLResponse(_PRICING_HTML.replace("<!-- __GA__ -->", ga))

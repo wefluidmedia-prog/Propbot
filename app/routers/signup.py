@@ -18,6 +18,17 @@ from app.config import settings
 from app.db.supabase_client import get_supabase
 from app.voice.voice_catalog import get_catalog
 
+
+def _ga_snippet() -> str:
+    gid = settings.GA_MEASUREMENT_ID
+    if not gid:
+        return ""
+    return (
+        f'<script async src="https://www.googletagmanager.com/gtag/js?id={gid}"></script>\n'
+        f"<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments);}}"
+        f"gtag('js',new Date());gtag('config','{gid}');</script>"
+    )
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -186,7 +197,7 @@ async def signup_step3(request: Request):
     client_id = _get_client_from_session(request)
     if not client_id:
         return RedirectResponse("/signup", status_code=302)
-    return HTMLResponse(STEP3_HTML)
+    return HTMLResponse(STEP3_HTML.replace("<!-- __GA__ -->", _ga_snippet()))
 
 
 @router.post("/step3")
@@ -199,7 +210,7 @@ async def signup_step3_submit(request: Request):
     knowledge_base = str(form.get("knowledge_base", "")).strip()
 
     if not knowledge_base:
-        return HTMLResponse(STEP3_HTML.replace("<!-- ERROR -->", '<p class="error">Please add at least some property details.</p>'))
+        return HTMLResponse(STEP3_HTML.replace("<!-- __GA__ -->", _ga_snippet()).replace("<!-- ERROR -->", '<p class="error">Please add at least some property details.</p>'))
 
     db = get_supabase()
     db.table("clients").update({
@@ -298,6 +309,7 @@ def _build_step1_html(plan: str = "pro") -> str:
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sign Up — PropBot</title>
+{_ga_snippet()}
 <style>
 {_SHARED_CSS}
 .plan-pill {{
@@ -329,7 +341,7 @@ def _build_step1_html(plan: str = "pro") -> str:
         </div>
         <p class="trial-note">✅ 14-day free trial — no credit card needed</p>
         <!-- ERROR -->
-        <form method="POST" action="/signup">
+        <form method="POST" action="/signup" onsubmit="if(typeof gtag==='function')gtag('event','sign_up',{method:'email'})">
             <input type="hidden" name="plan" value="{plan}" />
             <label>Business Name <span>*</span>
                 <input type="text" name="business_name" placeholder="e.g. Sharma Properties" required />
@@ -381,6 +393,7 @@ def _build_step2_html():
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Choose Voice — PropBot</title>
+{_ga_snippet()}
 <style>
 {_SHARED_CSS}
 {_STEP2_CSS}
@@ -446,6 +459,7 @@ STEP3_HTML = """<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Add Listings — PropBot</title>
+<!-- __GA__ -->
 <style>
 """ + _SHARED_CSS + """
 textarea { width: 100%; min-height: 280px; padding: 14px; border: 1.5px solid #E5E7EB; border-radius: 10px; font-size: 13px; font-family: 'SF Mono', 'Fira Code', monospace; line-height: 1.65; resize: vertical; background: #FAFAF8; color: #111827; transition: all .15s; }
@@ -475,7 +489,7 @@ textarea:focus { outline: none; border-color: #FF5722; box-shadow: 0 0 0 3px rgb
         <div class="hint-box">
             <strong>Tip:</strong> Use <code>##</code> for each property name, then add details on separate lines. The more detail you add, the better your AI answers buyer questions.
         </div>
-        <form method="POST" action="/signup/step3">
+        <form method="POST" action="/signup/step3" onsubmit="if(typeof gtag==='function')gtag('event','onboarding_complete')">
             <textarea name="knowledge_base" placeholder="## Green Valley Apartments, Sector 150 Noida
 - Type: 2BHK, 3BHK
 - Price: 55 lakh - 85 lakh

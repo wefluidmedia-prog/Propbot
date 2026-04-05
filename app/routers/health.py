@@ -1,13 +1,44 @@
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
 
+from app.config import settings
+
 router = APIRouter()
+
+
+def _ga_snippet() -> str:
+    """Return GA4 script tags if GA_MEASUREMENT_ID is configured, else empty string."""
+    gid = settings.GA_MEASUREMENT_ID
+    if not gid:
+        return ""
+    return (
+        f'<script async src="https://www.googletagmanager.com/gtag/js?id={gid}"></script>\n'
+        f"<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments);}}"
+        f"gtag('js',new Date());gtag('config','{gid}');</script>\n"
+    )
+
+
+def _og_tags() -> str:
+    """Return Open Graph + canonical meta tags."""
+    url = settings.BASE_URL
+    return (
+        f'<link rel="canonical" href="{url}/">\n'
+        f'<meta property="og:title" content="PropBot - AI Receptionist for Indian Real Estate Agents">\n'
+        f'<meta property="og:description" content="Answer every call 24/7 in Hindi & English. From ₹2,499/month.">\n'
+        f'<meta property="og:type" content="website">\n'
+        f'<meta property="og:url" content="{url}/">\n'
+        f'<meta name="twitter:card" content="summary">\n'
+        f'<meta name="twitter:title" content="PropBot - AI Receptionist for Indian Real Estate">\n'
+        f'<meta name="twitter:description" content="Answer every call 24/7 in Hindi & English. From ₹2,499/month.">\n'
+    )
 
 
 @router.get("/", response_class=HTMLResponse)
 async def root():
     """Landing page — marketing site."""
-    return LANDING_HTML
+    html = LANDING_HTML.replace("<!-- __GA__ -->", _ga_snippet())
+    html = html.replace("<!-- __OG__ -->", _og_tags())
+    return html
 
 
 @router.get("/health")
@@ -23,6 +54,8 @@ LANDING_HTML = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PropBot — AI Receptionist for Indian Real Estate Agents</title>
 <meta name="description" content="PropBot answers every call in Hindi & English 24/7, captures leads, books site visits. From ₹2,499/month. 14-day free trial, no credit card.">
+<!-- __GA__ -->
+<!-- __OG__ -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">

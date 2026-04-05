@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     BASE_URL: str = "https://propbot.onrender.com"
     WEBHOOK_SECRET: str = ""
 
+    # Analytics & marketing
+    GA_MEASUREMENT_ID: str = ""
+    WHATSAPP_NUMBER: str = ""
+
     # Render (optional)
     RENDER_API_KEY: str = ""
 
