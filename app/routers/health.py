@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
 from app.config import settings
@@ -65,7 +65,7 @@ async def health():
 
 
 @router.post("/contact")
-async def contact_form(request):
+async def contact_form(request: Request):
     """Receive contact form submission and email it to the founder."""
     import asyncio
     body = await request.json()
