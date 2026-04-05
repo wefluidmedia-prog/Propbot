@@ -97,7 +97,7 @@ async def signup_step1_submit(request: Request):
         existing = db.table("clients").select("id").eq("agent_email", agent_email).limit(1).execute()
     except Exception as e:
         logger.error("DB error checking email: %s", e)
-        return HTMLResponse(STEP1_HTML.replace("<!-- ERROR -->", '<p class="error">Database error. Please try again.</p>'))
+        return HTMLResponse(_build_step1_html(plan).replace("<!-- ERROR -->", '<p class="error">Database error. Please try again.</p>'))
 
     if existing.data:
         # Resume existing signup
@@ -230,42 +230,50 @@ async def list_voices():
 # ─── Shared CSS ──────────────────────────────────────────────────
 
 _SHARED_CSS = """
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; }
-.wizard { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
-.steps { display: flex; gap: 8px; margin-bottom: 24px; }
-.step { flex: 1; text-align: center; padding: 10px; font-size: 13px; font-weight: 500; color: #94a3b8; background: #fff; border-radius: 8px; border: 1px solid #e2e8f0; }
-.step.active { color: #2563eb; border-color: #2563eb; background: #eff6ff; }
-.step.done { color: #059669; border-color: #059669; background: #ecfdf5; }
-.card { background: #fff; padding: 32px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
-.card h2 { font-size: 22px; margin-bottom: 6px; }
-.card .subtitle { color: #64748b; font-size: 14px; margin-bottom: 24px; }
-label { display: block; font-size: 13px; font-weight: 500; color: #475569; margin-bottom: 14px; }
-input[type="text"], input[type="email"], input[type="tel"] { display: block; width: 100%; padding: 11px 14px; margin-top: 4px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; }
-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
-.btn-primary { display: block; width: 100%; padding: 14px; margin-top: 20px; background: #2563eb; color: #fff; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; }
-.btn-primary:hover { background: #1d4ed8; }
-.error { color: #dc2626; font-size: 13px; margin-bottom: 12px; padding: 10px; background: #fef2f2; border-radius: 6px; }
-@media (max-width: 640px) { .card { padding: 20px; } }
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #FAFAF8; color: #111827; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+.topbar { background: rgba(250,250,248,0.9); backdrop-filter: blur(12px); border-bottom: 1px solid #E5E7EB; padding: 12px 32px; display: flex; justify-content: space-between; align-items: center; }
+.topbar-logo { font-size: 18px; font-weight: 800; color: #111827; text-decoration: none; letter-spacing: -0.5px; }
+.topbar-logo span { color: #FF5722; }
+.topbar-back { font-size: 13px; color: #6B7280; text-decoration: none; }
+.topbar-back:hover { color: #111827; }
+.wizard { max-width: 580px; margin: 0 auto; padding: 32px 16px 48px; }
+.steps { display: flex; gap: 8px; margin-bottom: 28px; }
+.step { flex: 1; text-align: center; padding: 10px 6px; font-size: 12px; font-weight: 600; color: #9CA3AF; background: #fff; border-radius: 10px; border: 1px solid #E5E7EB; letter-spacing: 0.2px; }
+.step.active { color: #FF5722; border-color: #FF5722; background: rgba(255,87,34,0.06); }
+.step.done { color: #10B981; border-color: #10B981; background: #ECFDF5; }
+.card { background: #fff; padding: 36px; border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04); border: 1px solid #E5E7EB; }
+.card h2 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 6px; }
+.card .subtitle { color: #6B7280; font-size: 14px; margin-bottom: 24px; line-height: 1.55; }
+label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 16px; }
+label span { font-weight: 400; color: #9CA3AF; margin-left: 4px; }
+input[type="text"], input[type="email"], input[type="tel"] { display: block; width: 100%; padding: 12px 14px; margin-top: 5px; border: 1.5px solid #E5E7EB; border-radius: 10px; font-size: 15px; font-family: inherit; color: #111827; background: #FAFAF8; transition: all .15s; }
+input:focus { outline: none; border-color: #FF5722; box-shadow: 0 0 0 3px rgba(255,87,34,0.1); background: #fff; }
+.btn-primary { display: block; width: 100%; padding: 14px; margin-top: 24px; background: #FF5722; color: #fff; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all .2s; box-shadow: 0 4px 14px rgba(255,87,34,0.3); }
+.btn-primary:hover { background: #E64A19; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(255,87,34,0.35); }
+.error { color: #DC2626; font-size: 13px; margin-bottom: 14px; padding: 10px 14px; background: #FEF2F2; border-radius: 8px; border: 1px solid #FECACA; }
+@media (max-width: 640px) { .card { padding: 22px; } .topbar { padding: 12px 16px; } }
 """
 
 _STEP2_CSS = """
 .voice-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
-.voice-card { display: block; cursor: pointer; border: 2px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; transition: border-color 0.15s; }
-.voice-card:hover { border-color: #93c5fd; }
+.voice-card { display: block; cursor: pointer; border: 1.5px solid #E5E7EB; border-radius: 12px; padding: 14px 16px; transition: all .15s; background: #FAFAF8; }
+.voice-card:hover { border-color: rgba(255,87,34,0.4); background: #fff; }
 .voice-card input[type="radio"] { display: none; }
-.voice-card:has(input:checked) { border-color: #2563eb; background: #eff6ff; }
-.voice-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.voice-meta { font-size: 12px; color: #64748b; margin-bottom: 4px; }
-.voice-desc { font-size: 13px; color: #475569; }
-.gender-tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500; }
-.tag-f { background: #fce7f3; color: #be185d; }
-.tag-m { background: #dbeafe; color: #1d4ed8; }
-.rec-badge { font-size: 11px; padding: 2px 8px; background: #d1fae5; color: #065f46; border-radius: 10px; }
+.voice-card:has(input:checked) { border-color: #FF5722; background: rgba(255,87,34,0.04); box-shadow: 0 0 0 3px rgba(255,87,34,0.1); }
+.voice-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
+.voice-meta { font-size: 12px; color: #6B7280; margin-bottom: 4px; }
+.voice-desc { font-size: 13px; color: #374151; line-height: 1.5; }
+.gender-tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+.tag-f { background: #FCE7F3; color: #BE185D; }
+.tag-m { background: #DBEAFE; color: #1D4ED8; }
+.rec-badge { font-size: 11px; padding: 2px 8px; background: #D1FAE5; color: #065F46; border-radius: 10px; font-weight: 600; }
 .filter-bar { display: flex; gap: 8px; margin-bottom: 16px; }
-.filter-btn { padding: 6px 16px; border: 1px solid #e2e8f0; border-radius: 20px; background: #fff; font-size: 13px; cursor: pointer; color: #64748b; }
-.filter-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
-.persona-field { margin-top: 12px; }
+.filter-btn { padding: 6px 16px; border: 1.5px solid #E5E7EB; border-radius: 20px; background: #fff; font-size: 13px; font-weight: 500; cursor: pointer; color: #6B7280; font-family: inherit; transition: all .15s; }
+.filter-btn.active { background: #FF5722; color: #fff; border-color: #FF5722; }
+.filter-btn:hover:not(.active) { border-color: #FF5722; color: #FF5722; }
+.persona-field { margin-top: 14px; }
 """
 
 
@@ -303,11 +311,15 @@ def _build_step1_html(plan: str = "pro") -> str:
 </style>
 </head>
 <body>
+<div class="topbar">
+    <a class="topbar-logo" href="/"><span>Prop</span>Bot</a>
+    <a class="topbar-back" href="/">← Back to home</a>
+</div>
 <div class="wizard">
     <div class="steps">
-        <div class="step active">1. Business Details</div>
-        <div class="step">2. Choose Voice</div>
-        <div class="step">3. Add Listings</div>
+        <div class="step active">1 · Business Details</div>
+        <div class="step">2 · Choose Voice</div>
+        <div class="step">3 · Add Listings</div>
     </div>
     <div class="card">
         <h2>Tell us about your business</h2>
@@ -319,19 +331,19 @@ def _build_step1_html(plan: str = "pro") -> str:
         <!-- ERROR -->
         <form method="POST" action="/signup">
             <input type="hidden" name="plan" value="{plan}" />
-            <label>Business Name *
+            <label>Business Name <span>*</span>
                 <input type="text" name="business_name" placeholder="e.g. Sharma Properties" required />
             </label>
-            <label>Your Name *
+            <label>Your Name <span>*</span>
                 <input type="text" name="agent_name" placeholder="e.g. Rahul Sharma" required />
             </label>
-            <label>Email *
+            <label>Email <span>*</span>
                 <input type="email" name="agent_email" placeholder="you@example.com" required />
             </label>
-            <label>Phone *
+            <label>Phone <span>*</span>
                 <input type="tel" name="agent_phone" placeholder="+91 98765 43210" required />
             </label>
-            <label>City
+            <label>City <span>optional</span>
                 <input type="text" name="city" placeholder="e.g. Delhi, Mumbai, Bangalore" />
             </label>
             <button type="submit" class="btn-primary">Continue →</button>
@@ -375,30 +387,33 @@ def _build_step2_html():
 </style>
 </head>
 <body>
+<div class="topbar">
+    <a class="topbar-logo" href="/"><span>Prop</span>Bot</a>
+    <a class="topbar-back" href="/">← Back to home</a>
+</div>
 <div class="wizard">
     <div class="steps">
-        <div class="step done">1. Business Details</div>
-        <div class="step active">2. Choose Voice</div>
-        <div class="step">3. Add Listings</div>
+        <div class="step done">1 · Business Details</div>
+        <div class="step active">2 · Choose Voice</div>
+        <div class="step">3 · Add Listings</div>
     </div>
     <div class="card">
         <h2>Choose your AI assistant's voice</h2>
-        <p class="subtitle">Pick a voice that matches your brand. You can change this later.</p>
+        <p class="subtitle">Pick a voice that matches your brand. You can change this later from your dashboard.</p>
         <form method="POST" action="/signup/step2">
             <div class="filter-bar">
-                <button type="button" class="filter-btn active" data-filter="all">All</button>
+                <button type="button" class="filter-btn active" data-filter="all">All voices</button>
                 <button type="button" class="filter-btn" data-filter="female">Female</button>
                 <button type="button" class="filter-btn" data-filter="male">Male</button>
             </div>
             <div class="voice-grid">
                 {cards_html}
             </div>
-            <label class="persona-field">
-                Assistant Name (callers will hear this)
+            <label class="persona-field">Assistant Name <span>(callers will hear this)</span>
                 <input type="text" name="persona_name" placeholder="e.g. Priya, Ananya, Arjun" value="Priya" />
             </label>
             <input type="hidden" name="voice_gender" id="voice_gender" value="female" />
-            <button type="submit" class="btn-primary">Continue</button>
+            <button type="submit" class="btn-primary">Continue →</button>
         </form>
     </div>
 </div>
@@ -433,25 +448,32 @@ STEP3_HTML = """<!DOCTYPE html>
 <title>Add Listings — PropBot</title>
 <style>
 """ + _SHARED_CSS + """
-textarea { width: 100%; min-height: 300px; padding: 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; font-family: monospace; line-height: 1.6; resize: vertical; }
-textarea:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
-.template-hint { background: #f0f4ff; padding: 14px; border-radius: 8px; font-size: 13px; color: #475569; margin-bottom: 16px; }
-.template-hint code { background: #e0e7ff; padding: 2px 6px; border-radius: 3px; }
+textarea { width: 100%; min-height: 280px; padding: 14px; border: 1.5px solid #E5E7EB; border-radius: 10px; font-size: 13px; font-family: 'SF Mono', 'Fira Code', monospace; line-height: 1.65; resize: vertical; background: #FAFAF8; color: #111827; transition: all .15s; }
+textarea:focus { outline: none; border-color: #FF5722; box-shadow: 0 0 0 3px rgba(255,87,34,0.1); background: #fff; }
+.hint-box { background: rgba(255,87,34,0.05); border: 1px solid rgba(255,87,34,0.2); padding: 14px 16px; border-radius: 10px; font-size: 13px; color: #374151; margin-bottom: 16px; line-height: 1.6; }
+.hint-box strong { color: #FF5722; }
+.hint-box code { background: rgba(255,87,34,0.1); color: #E64A19; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+.skip-link { display: block; text-align: center; margin-top: 12px; font-size: 13px; color: #9CA3AF; }
+.skip-link a { color: #6B7280; text-decoration: underline; }
 </style>
 </head>
 <body>
+<div class="topbar">
+    <a class="topbar-logo" href="/"><span>Prop</span>Bot</a>
+    <a class="topbar-back" href="/">← Back to home</a>
+</div>
 <div class="wizard">
     <div class="steps">
-        <div class="step done">1. Business Details</div>
-        <div class="step done">2. Choose Voice</div>
-        <div class="step active">3. Add Listings</div>
+        <div class="step done">1 · Business Details</div>
+        <div class="step done">2 · Choose Voice</div>
+        <div class="step active">3 · Add Listings</div>
     </div>
     <div class="card">
         <h2>Add your property listings</h2>
-        <p class="subtitle">Your AI assistant will use this to answer questions. You can update this anytime from the dashboard.</p>
+        <p class="subtitle">Your AI assistant will use this to answer buyer questions. You can edit this anytime from your dashboard.</p>
         <!-- ERROR -->
-        <div class="template-hint">
-            <strong>Tip:</strong> Use the format below. Add each property with <code>##</code> heading, then details like price, area, type, and features.
+        <div class="hint-box">
+            <strong>Tip:</strong> Use <code>##</code> for each property name, then add details on separate lines. The more detail you add, the better your AI answers buyer questions.
         </div>
         <form method="POST" action="/signup/step3">
             <textarea name="knowledge_base" placeholder="## Green Valley Apartments, Sector 150 Noida
@@ -470,12 +492,10 @@ textarea:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgb
 
 ## FAQ
 Q: Do you help with home loans?
-A: Yes, we help with home loan processing through partner banks.
-
-Q: What is the registration process?
-A: We handle the complete registration and documentation process."></textarea>
-            <button type="submit" class="btn-primary">Launch My AI Receptionist</button>
+A: Yes, we help with home loan processing through partner banks."></textarea>
+            <button type="submit" class="btn-primary">Launch My AI Receptionist 🚀</button>
         </form>
+        <p class="skip-link">Not ready? <a href="/dashboard">Skip and add listings later from dashboard</a></p>
     </div>
 </div>
 </body>

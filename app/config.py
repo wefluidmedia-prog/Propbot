@@ -48,7 +48,10 @@ class Settings(BaseSettings):
     BASE_URL: str = "https://propbot.onrender.com"
     WEBHOOK_SECRET: str = ""
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    # Render (optional)
+    RENDER_API_KEY: str = ""
+
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 settings = Settings()
