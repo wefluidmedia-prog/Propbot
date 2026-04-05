@@ -341,7 +341,7 @@ def _build_step1_html(plan: str = "pro") -> str:
         </div>
         <p class="trial-note">✅ 14-day free trial — no credit card needed</p>
         <!-- ERROR -->
-        <form method="POST" action="/signup" onsubmit="if(typeof gtag==='function')gtag('event','sign_up',{method:'email'})">
+        <form method="POST" action="/signup" onsubmit="if(typeof gtag==='function')gtag('event','sign_up',{{method:'email'}})">
             <input type="hidden" name="plan" value="{plan}" />
             <label>Business Name <span>*</span>
                 <input type="text" name="business_name" placeholder="e.g. Sharma Properties" required />
