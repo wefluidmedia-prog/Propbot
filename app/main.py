@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.db.supabase_client import init_supabase
-from app.routers import webhooks, chat, leads, health, dashboard, signup, billing, pricing
+from app.routers import webhooks, chat, leads, health, dashboard, signup, billing, pricing, admin
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +70,7 @@ app.include_router(dashboard.router, prefix="/dashboard")
 app.include_router(signup.router, prefix="/signup")
 app.include_router(billing.router, prefix="/api/billing")
 app.include_router(pricing.router, prefix="/pricing")
+app.include_router(admin.router, prefix="/admin")
 
 # Serve chat widget static files
 app.mount("/static", StaticFiles(directory="widget"), name="static")
