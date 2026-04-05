@@ -185,6 +185,7 @@ async def retry_provision(client_id: str, request: Request):
 # ─── Admin SPA ───────────────────────────────────────────────────
 
 @router.get("")
+@router.get("/")
 async def admin_page():
     return HTMLResponse(ADMIN_HTML)
 
