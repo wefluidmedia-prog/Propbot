@@ -349,8 +349,12 @@ async def get_usage(client_id: str = Depends(_get_client_id)):
 @router.get("/api/embed-code")
 async def get_embed_code(client_id: str = Depends(_get_client_id)):
     db = get_supabase()
-    result = db.table("clients").select("id, assistant_persona_name").eq("id", client_id).single().execute()
+    result = db.table("clients").select("id, assistant_persona_name, plan_type").eq("id", client_id).single().execute()
     client = result.data
+    if (client.get("plan_type") or "pro") == "starter":
+        return {
+            "embed_code": "<!-- Chat widget is available on the Pro plan. Upgrade at your Billing tab. -->"
+        }
     persona = client.get("assistant_persona_name", "Priya")
     return {
         "embed_code": (

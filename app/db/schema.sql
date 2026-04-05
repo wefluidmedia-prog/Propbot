@@ -18,7 +18,7 @@ CREATE TABLE clients (
     knowledge_base TEXT,
     assistant_persona_name TEXT DEFAULT 'Priya',
     first_message TEXT DEFAULT 'Namaste! Aapka swagat hai. Main Priya hoon, aapki kya madad kar sakti hoon?',
-    subscription_status TEXT DEFAULT 'trial' CHECK (subscription_status IN ('trial', 'active', 'paused', 'cancelled')),
+    subscription_status TEXT DEFAULT 'trial' CHECK (subscription_status IN ('trial', 'active', 'paused', 'cancelled', 'expired')),
     razorpay_payment_link TEXT,
     monthly_fee_inr INTEGER DEFAULT 5000,
     created_at TIMESTAMPTZ DEFAULT NOW(),

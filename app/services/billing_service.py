@@ -263,6 +263,12 @@ async def check_subscription_active(client_id: str) -> bool:
             if trial_ends_at > datetime.now(timezone.utc):
                 return True
 
+        # Trial has expired — mark as 'expired' (write-on-read, no cron needed)
+        db.table("clients").update({"subscription_status": "expired"}).eq(
+            "id", client_id
+        ).execute()
+        logger.info("Auto-expired trial for client %s", client_id)
+
     return False
 
 

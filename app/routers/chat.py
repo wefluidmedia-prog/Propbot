@@ -33,6 +33,16 @@ async def chat_message(client_id: str, req: ChatRequest, request: Request):
             visitor_id=req.visitor_id or "",
         )
 
+    # Chat widget is Pro-only
+    from app.db.supabase_client import get_supabase
+    db = get_supabase()
+    _client = db.table("clients").select("plan_type").eq("id", client_id).single().execute()
+    if (_client.data or {}).get("plan_type") == "starter":
+        return ChatResponse(
+            reply="Chat is available on the Pro plan. Please call us directly for assistance.",
+            visitor_id=req.visitor_id or "",
+        )
+
     try:
         history = [{"role": m.role, "content": m.content} for m in req.history]
         result = await get_chat_response(
@@ -51,6 +61,12 @@ async def chat_message(client_id: str, req: ChatRequest, request: Request):
 async def request_callback(client_id: str, req: CallbackRequest, request: Request):
     """Handle 'Request Callback' button from chat widget."""
     rate_limit_callback(request, client_id)
+
+    # Enforce subscription
+    from app.services.billing_service import check_subscription_active
+    if not await check_subscription_active(client_id):
+        raise HTTPException(status_code=403, detail="Service inactive — subscription required")
+
     try:
         await store_callback_request(
             client_id=client_id,
