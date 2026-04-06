@@ -30,6 +30,18 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from app.config import settings
 from app.db.supabase_client import get_supabase
 
+
+def _ga_snippet() -> str:
+    """Return GA4 script tags if GA_MEASUREMENT_ID is configured, else empty string."""
+    gid = settings.GA_MEASUREMENT_ID
+    if not gid:
+        return ""
+    return (
+        f'<script async src="https://www.googletagmanager.com/gtag/js?id={gid}"></script>\n'
+        f"<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments);}}"
+        f"gtag('js',new Date());gtag('config','{gid}');</script>\n"
+    )
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -412,7 +424,9 @@ async def disconnect_google_calendar(client_id: str = Depends(_get_client_id)):
 async def dashboard_page(request: Request):
     token = request.cookies.get("propbot_session")
     logged_in = bool(token and _verify_session(token))
-    return HTMLResponse(DASHBOARD_HTML.replace("__LOGGED_IN__", "true" if logged_in else "false"))
+    html = DASHBOARD_HTML.replace("__LOGGED_IN__", "true" if logged_in else "false")
+    html = html.replace("<!-- __GA__ -->", _ga_snippet())
+    return HTMLResponse(html)
 
 
 # ─── Dashboard HTML/JS (full SPA) ────────────────────────────────
@@ -423,6 +437,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PropBot Dashboard</title>
+<!-- __GA__ -->
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:#F3F4F6;color:#111827;-webkit-font-smoothing:antialiased;}

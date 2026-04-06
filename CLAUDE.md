@@ -9,6 +9,12 @@ FastAPI + Supabase (PostgreSQL) + Bolna.ai (voice) + Exotel (telephony) + Claude
 - Always confirm working directory is `E:\Claude Code\properties` before running commands
 - Python 3.11+ is installed and on PATH
 
+## Workflow Rules
+- Always commit working code before making deployment changes, API calls to deployed endpoints, or starting new feature branches — run `git status` first
+- Always check that dependencies are in requirements.txt before deploying — verify imports resolve locally before pushing
+- When modifying existing pages or templates, verify no regressions before moving to the next task (curl affected routes, check for 200) — never inject raw code (e.g. GA scripts) via f-strings in HTML templates
+- After completing each feature or fix, commit immediately with a descriptive message before starting the next task
+
 ## Python / FastAPI Rules
 - Always include `python-multipart` in requirements.txt for any FastAPI project
 - Define all module-level constants (e.g. _SHARED_CSS) before they are referenced
