@@ -39,6 +39,21 @@ async def root():
     html = LANDING_HTML.replace("<!-- __GA__ -->", _ga_snippet())
     html = html.replace("<!-- __OG__ -->", _og_tags())
 
+    # Founders banner (only if FOUNDERS_SLOTS is set)
+    slots = settings.FOUNDERS_SLOTS
+    if slots:
+        founders_html = (
+            '<div class="founders-banner"><div class="fb-inner">'
+            '<span class="fb-badge">LAUNCH OFFER</span>'
+            '<span class="fb-text">First 10 Founders get <strong class="fb-price">30% off for life</strong> '
+            '&mdash; Starter at <strong>&#8377;1,749/mo</strong>, Pro at <strong>&#8377;3,499/mo</strong></span>'
+            f'<span class="fb-slots">Only {slots} spots left</span>'
+            '</div></div>'
+        )
+    else:
+        founders_html = ""
+    html = html.replace("<!-- __FOUNDERS_BANNER__ -->", founders_html)
+
     # WhatsApp floating button + footer link (only if configured)
     wa = settings.WHATSAPP_NUMBER
     if wa:
@@ -440,6 +455,19 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
 .contact-msg{text-align:center;margin-top:12px;font-size:14px;color:#059669;display:none;}
 @media(max-width:600px){.contact-form .row{flex-direction:column;}}
 
+/* Founders banner */
+.founders-banner{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);padding:14px 40px;text-align:center;position:relative;overflow:hidden;}
+.founders-banner::before{content:"";position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(90deg,transparent,rgba(255,87,34,.06),transparent);animation:shimmer 3s infinite;}
+@keyframes shimmer{0%{transform:translateX(-100%);}100%{transform:translateX(100%);}}
+.fb-inner{max-width:800px;margin:0 auto;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;}
+.fb-badge{background:var(--orange);color:#fff;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:800;letter-spacing:.5px;white-space:nowrap;animation:pulse-glow 2s infinite;}
+@keyframes pulse-glow{0%,100%{box-shadow:0 0 8px rgba(255,87,34,.4);}50%{box-shadow:0 0 16px rgba(255,87,34,.7);}}
+.fb-text{color:#E6EDF3;font-size:14px;font-weight:500;}
+.fb-text strong{color:#fff;font-weight:700;}
+.fb-text .fb-price{color:var(--orange);font-weight:800;}
+.fb-slots{color:#FEBC2E;font-size:13px;font-weight:700;white-space:nowrap;}
+@media(max-width:600px){.founders-banner{padding:12px 20px;}.fb-inner{gap:8px;}.fb-text{font-size:13px;}}
+
 /* WhatsApp floating button */
 .wa-float{position:fixed;bottom:24px;right:24px;z-index:999;width:56px;height:56px;background:#25D366;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(37,211,102,.4);transition:transform .2s;text-decoration:none;}
 .wa-float:hover{transform:scale(1.1);}
@@ -530,6 +558,9 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
   </div>
 </div>
 </section>
+
+<!-- FOUNDERS BANNER -->
+<!-- __FOUNDERS_BANNER__ -->
 
 <!-- TRUST BAR -->
 <div class="trust-bar">

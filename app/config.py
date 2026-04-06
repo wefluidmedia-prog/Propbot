@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     # Analytics & marketing
     GA_MEASUREMENT_ID: str = ""
     WHATSAPP_NUMBER: str = ""
+    FOUNDERS_SLOTS: str = ""  # e.g. "7" — shows "First 10 Founders" banner when set
 
     # Render (optional)
     RENDER_API_KEY: str = ""

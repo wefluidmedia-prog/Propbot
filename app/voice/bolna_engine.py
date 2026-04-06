@@ -170,6 +170,7 @@ class BolnaEngine(VoiceEngine):
                             "caching": True,
                             "audio_format": "wav",
                             "provider_config": {
+                                "voice": config.voice_id,
                                 "voice_id": config.voice_id,
                                 "model": "eleven_turbo_v2_5",
                                 "speed": 1.0,
@@ -180,8 +181,8 @@ class BolnaEngine(VoiceEngine):
                         "transcriber": {
                             "provider": "deepgram",
                             "model": "nova-2",
-                            "language": "multi",
-                            "keywords": config.language_hints,
+                            "language": config.language_hints[0] if config.language_hints else "hi",
+                            "keywords": ", ".join(config.language_hints),
                         },
                         "input": {
                             "provider": "exotel",
@@ -193,6 +194,10 @@ class BolnaEngine(VoiceEngine):
                         },
                     },
                     "tools": self._convert_tools(config.tools, config.webhook_url),
+                    "toolchain": {
+                        "execution": "parallel",
+                        "pipelines": [["llm_agent", "synthesizer"]],
+                    },
                 }
             ],
         }
