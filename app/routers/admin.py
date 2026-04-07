@@ -182,6 +182,50 @@ async def retry_provision(client_id: str, request: Request):
     return result
 
 
+# ─── Agent Provisioning ──────────────────────────────────────────
+
+@router.post("/api/provision-agent/{client_id}")
+async def provision_agent(client_id: str, request: Request):
+    """
+    Provision (or re-provision) a Bolna voice agent for a client.
+
+    Safe to call when bolna_agent_id is missing. If agent already exists,
+    update_voice_agent() will update it in place rather than creating a duplicate.
+    """
+    _require_admin(request)
+    from app.services.onboarding_service import update_voice_agent
+    db = get_supabase()
+
+    client = db.table("clients").select(
+        "id, business_name, bolna_agent_id, setup_status"
+    ).eq("id", client_id).single().execute()
+    if not client.data:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    info = client.data
+    logger.info(
+        "Admin provision-agent: client=%s existing_agent=%s",
+        info["business_name"], info.get("bolna_agent_id") or "none",
+    )
+
+    try:
+        await update_voice_agent(client_id)
+    except Exception as e:
+        logger.error("provision-agent failed for %s: %s", client_id, e)
+        raise HTTPException(status_code=502, detail=str(e))
+
+    # Re-fetch to confirm agent was stored
+    updated = db.table("clients").select(
+        "bolna_agent_id, setup_status"
+    ).eq("id", client_id).single().execute()
+    return {
+        "client_id": client_id,
+        "business": info["business_name"],
+        "bolna_agent_id": updated.data.get("bolna_agent_id"),
+        "setup_status": updated.data.get("setup_status"),
+    }
+
+
 # ─── Test Call ───────────────────────────────────────────────────
 
 @router.post("/api/test-call")
