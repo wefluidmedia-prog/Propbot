@@ -42,10 +42,10 @@ async def main():
     for client in clients:
         try:
             await update_voice_agent(client["id"])
-            print(f"  ✓ {client['business_name']}")
+            print(f"  OK {client['business_name']}")
             success += 1
         except Exception as e:
-            print(f"  ✗ {client['business_name']}: {e}")
+            print(f"  FAIL {client['business_name']}: {e}")
 
     print(f"\nDone. {success}/{len(clients)} agents updated.")
 
