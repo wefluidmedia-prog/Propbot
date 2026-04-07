@@ -25,7 +25,7 @@ class AgentConfig:
     tools: list[dict]                        # Tool definitions (see VOICE_TOOLS)
     webhook_url: str                         # URL Bolna/Vapi will POST tool calls to
     client_id: str                           # Our internal tenant ID (stored in metadata)
-    telephony_number: Optional[str] = None   # Exotel number to bind
+    telephony_number: Optional[str] = None   # Vobiz number to bind
     metadata: dict = field(default_factory=dict)  # Provider-specific overrides
 
 

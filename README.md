@@ -11,7 +11,7 @@ AI-powered voice + chat receptionist that handles inbound calls, qualifies leads
 │  Caller (Hindi/English/Hinglish)                                    │
 │    │                                                                │
 │    ▼                                                                │
-│  Exotel Virtual Number (Indian DID, +91-XXX)                       │
+│  Vobiz Virtual Number (Indian DID, +91-XXX)                        │
 │    │                                                                │
 │    ▼                                                                │
 │  Bolna.ai Voice Platform                                            │
@@ -22,7 +22,7 @@ AI-powered voice + chat receptionist that handles inbound calls, qualifies leads
 │    ├── tool-calls webhook ──► FastAPI Backend (Render.com)         │
 │    │                            ├── Supabase: store lead            │
 │    │                            ├── Gmail SMTP: email to agent      │
-│    │                            └── Exotel SMS: alert to agent      │
+│    │                            └── Gmail SMTP: alert to agent       │
 │    │                                                                │
 │    └── end-of-call webhook ──► FastAPI Backend                     │
 │                                 └── Supabase: store conversation    │
@@ -48,7 +48,7 @@ AI-powered voice + chat receptionist that handles inbound calls, qualifies leads
 │                      MULTI-TENANT MODEL                             │
 │                                                                     │
 │  Each Client (Real Estate Agent) gets:                              │
-│    ├── 1 Exotel virtual number                                     │
+│    ├── 1 Vobiz virtual number                                      │
 │    ├── 1 Bolna voice agent (with personalized system prompt)       │
 │    ├── 1 Supabase config row (tenant settings)                     │
 │    └── 1 Markdown knowledge base (listings + FAQs)                 │
@@ -59,13 +59,13 @@ AI-powered voice + chat receptionist that handles inbound calls, qualifies leads
 
 | Component | Service | Why |
 |-----------|---------|-----|
-| Voice AI | Bolna.ai (OSS, YC-backed) | ~$0.06/min, native Hindi/Hinglish, built-in Exotel |
-| Telephony | Exotel | Indian numbers, INR billing, SMS API |
+| Voice AI | Bolna.ai (OSS, YC-backed) | ~$0.06/min, native Hindi/Hinglish, built-in Vobiz |
+| Telephony | Vobiz | Indian numbers, INR billing, SIP trunking |
 | Chat | Vanilla JS widget | Zero dependencies, mobile-first, embeddable |
 | AI Brain | Claude claude-sonnet-4-20250514 | Best multilingual reasoning |
 | Backend | Python FastAPI | Async, fast, easy to maintain |
 | Database | Supabase (free tier) | Postgres + REST API, generous free tier |
-| Alerts | Gmail SMTP + Exotel SMS | Free + INR billing |
+| Alerts | Gmail SMTP | Free |
 | Payments | Razorpay (personal) | UPI + cards, no GST needed |
 | Hosting | Render.com (free tier) | Easy deploy, self-ping for uptime |
 
@@ -108,7 +108,7 @@ python scripts/seed_demo.py
 | Item | Monthly Cost |
 |------|-------------|
 | Bolna.ai (~70 calls x 3 min @ $0.06/min) | ~₹1,050 |
-| Exotel number + minutes | ~₹500 |
+| Vobiz number + minutes | ~₹500 |
 | Claude API (chat widget) | ~₹200 |
 | Supabase | Free |
 | Render.com | Free |

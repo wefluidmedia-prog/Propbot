@@ -15,14 +15,13 @@
 | **ElevenLabs TTS** | 210 min × $0.018/min × ₹84 | ₹318 |
 | **Claude API (voice via Bolna)** | 210 min × ~$0.005/min × ₹84 | ₹88 |
 | **Claude API (chat widget)** | 200 msgs × ~500 tokens × $3/M input + $15/M output | ₹180 |
-| **Exotel virtual number** | 1 DID/month | ₹200 |
-| **Exotel call minutes** | 210 min × ₹1.5/min | ₹315 |
-| **Exotel SMS alerts** | ~30 SMS × ₹0.30/SMS | ₹9 |
+| **Vobiz virtual number** | 1 DID/month | ₹200 |
+| **Vobiz call minutes** | 210 min × ₹0.45/min | ₹95 |
 | **Gmail SMTP** | Free | ₹0 |
 | **Supabase** | Free tier | ₹0 |
 | **Render.com** | Free tier (shared across clients) | ₹0 |
 | | | |
-| **TOTAL COST** | | **~₹1,567** |
+| **TOTAL COST** | | **~₹1,338** |
 
 ## Revenue & Margin
 
@@ -31,9 +30,9 @@
 | Monthly revenue per client | ₹5,000 |
 | Razorpay fee (2.36%) | -₹118 |
 | Net revenue | ₹4,882 |
-| Monthly cost | -₹1,567 |
-| **Gross profit per client** | **₹3,315** |
-| **Gross margin** | **~66%** |
+| Monthly cost | -₹1,338 |
+| **Gross profit per client** | **₹3,544** |
+| **Gross margin** | **~73%** |
 
 ## At 3 Clients (MVP Target)
 
@@ -41,19 +40,19 @@
 |--------|--------|
 | Monthly revenue | ₹15,000 |
 | Razorpay fees | -₹354 |
-| Total costs | -₹4,701 |
+| Total costs | -₹4,014 |
 | Render upgrade (if needed) | -₹588 ($7) |
-| **Monthly profit** | **~₹9,357** |
-| **Annual profit** | **~₹1,12,284** |
+| **Monthly profit** | **~₹10,044** |
+| **Annual profit** | **~₹1,20,528** |
 
 ## Break-even Analysis
 - Fixed costs (your time): estimate ₹0 (solo founder, no salary)
-- Variable cost per client: ~₹1,567
+- Variable cost per client: ~₹1,338
 - Break-even: 1 client covers costs on Day 1
 - Profitable from client #1
 
 ## Scaling Considerations
-- At 10 clients: ₹50K revenue, ~₹15.7K costs, ₹34.3K profit/month
+- At 10 clients: ₹50K revenue, ~₹13.4K costs, ₹36.6K profit/month
 - At 10 clients: register GST, switch to Razorpay business
 - At 20+ clients: consider self-hosting Bolna (eliminates $0.02/min platform fee)
 - At 50+ clients: hire part-time support, consider Pipecat migration

@@ -15,7 +15,7 @@ Usage:
         --agent-email "rahul@sharma.com" \
         --agent-phone "+919876543210" \
         --kb-file "knowledge_bases/sharma_properties.md" \
-        --exotel-number "+911234567890" \
+        --phone-number "+911234567890" \
         --voice-id "YOUR_ELEVENLABS_VOICE_ID"
 """
 
@@ -54,7 +54,7 @@ async def onboard(args):
         "agent_name": args.agent_name,
         "agent_email": args.agent_email,
         "agent_phone": args.agent_phone,
-        "exotel_number": args.exotel_number,
+        "exotel_number": args.phone_number,
         "knowledge_base": kb_content,
         "assistant_persona_name": args.persona_name,
     }
@@ -90,7 +90,7 @@ async def onboard(args):
         tools=VOICE_TOOLS,
         webhook_url=f"{settings.BASE_URL}/api/webhooks/voice",
         client_id=client_id,
-        telephony_number=args.exotel_number,
+        telephony_number=args.phone_number,
     )
 
     handle = await engine.create_agent(config)
@@ -122,7 +122,7 @@ async def onboard(args):
     print(f"  Agent:           {args.agent_name}")
     print(f"  Voice Provider:  {handle.provider}")
     print(f"  Agent ID:        {handle.agent_id}")
-    print(f"  Exotel Number:   {args.exotel_number}")
+    print(f"  Phone Number:    {args.phone_number}")
     print(f"  Webhook URL:     {settings.BASE_URL}/api/webhooks/voice")
     print(f"{'='*60}")
     print(f"\n  CHAT WIDGET EMBED CODE:")
@@ -135,7 +135,7 @@ async def onboard(args):
     print(f"  {raw_api_key}")
     print(f"{'='*60}")
     print(f"\n  NEXT STEPS:")
-    print(f"  1. Test voice: Call {args.exotel_number}")
+    print(f"  1. Test voice: Call {args.phone_number}")
     print(f"  2. Test chat:  Open widget/demo.html (update CLIENT_ID)")
     print(f"  3. Create Razorpay payment link: https://dashboard.razorpay.com/app/payment-links")
     print(f"     Amount: INR 5000, Description: '{args.business_name} - AI Receptionist Monthly'")
@@ -149,7 +149,7 @@ def main():
     parser.add_argument("--agent-email", required=True)
     parser.add_argument("--agent-phone", required=True, help="e.g. '+919876543210'")
     parser.add_argument("--kb-file", required=True, help="Path to markdown KB file")
-    parser.add_argument("--exotel-number", default="", help="Exotel virtual number")
+    parser.add_argument("--phone-number", default="", help="Vobiz virtual number")
     parser.add_argument("--voice-id", default="", help="ElevenLabs voice ID")
     parser.add_argument("--persona-name", default="Priya", help="AI persona name")
     args = parser.parse_args()

@@ -1,5 +1,5 @@
 """
-Phone number pool service — manages pre-purchased Exotel numbers assigned to clients.
+Phone number pool service — manages pre-purchased Vobiz numbers assigned to clients.
 
 Numbers live in the `phone_number_pool` table. On signup a free number is claimed
 and written to `clients.exotel_number`; on client deletion it is released back.

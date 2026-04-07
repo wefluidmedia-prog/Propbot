@@ -17,13 +17,6 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
 
-    # Exotel (telephony + SMS)
-    EXOTEL_ACCOUNT_SID: str = ""
-    EXOTEL_API_KEY: str = ""
-    EXOTEL_API_TOKEN: str = ""
-    EXOTEL_SUBDOMAIN: str = "api.in.exotel.com"
-    EXOTEL_CALLER_ID: str = ""
-
     # Supabase
     SUPABASE_URL: str = ""
     SUPABASE_SERVICE_KEY: str = ""

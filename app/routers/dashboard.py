@@ -329,7 +329,7 @@ async def get_usage(client_id: str = Depends(_get_client_id)):
     total_seconds_month = sum(c.get("duration_seconds") or 0 for c in month_calls)
     total_seconds_all = sum(c.get("duration_seconds") or 0 for c in all_calls)
 
-    # ₹0.06/min Bolna + Exotel ≈ ₹5 per minute total (including platform)
+    # ₹0.06/min Bolna + Vobiz ≈ ₹5 per minute total (including platform)
     COST_PER_MIN_INR = 5
     minutes_month = round(total_seconds_month / 60, 1)
     estimated_cost_inr = round(minutes_month * COST_PER_MIN_INR)
@@ -1000,7 +1000,7 @@ function renderUsage(){
         statCard('Total Minutes', u.total_minutes+'m', '', 'all time') +
       '</div>' +
       '<div class="cost-note">' +
-        '<strong>About this estimate:</strong> Usage cost is estimated at ₹5/min (Bolna AI + Exotel telephony). ' +
+        '<strong>About this estimate:</strong> Usage cost is estimated at ₹5/min (Bolna AI + Vobiz telephony). ' +
         'Your monthly subscription is ₹'+u.subscription_fee_inr+'. ' +
         'Actual billing is a flat monthly fee — you won\'t be charged per minute.' +
       '</div>';

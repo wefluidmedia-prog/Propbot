@@ -21,14 +21,6 @@ services:
         sync: false
       - key: SMTP_APP_PASSWORD
         sync: false
-      - key: EXOTEL_ACCOUNT_SID
-        sync: false
-      - key: EXOTEL_API_KEY
-        sync: false
-      - key: EXOTEL_API_TOKEN
-        sync: false
-      - key: EXOTEL_CALLER_ID
-        sync: false
       - key: BASE_URL
         sync: false
       - key: WEBHOOK_SECRET

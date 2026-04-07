@@ -3,8 +3,8 @@
 ## Week 1: Foundation + Accounts
 **Goal: All accounts created, schema live, core abstraction built**
 
-- [ ] Sign up: Bolna.ai, Exotel, Supabase, Render, Razorpay, ElevenLabs, Deepgram
-- [ ] Email hello@exotel.com to enable SIP trunking (lead time: 2-5 days)
+- [ ] Sign up: Bolna.ai, Vobiz, Supabase, Render, Razorpay, ElevenLabs, Deepgram
+- [ ] Configure Vobiz credentials in Bolna console (Providers → Add Vobiz)
 - [ ] Run schema.sql in Supabase SQL editor
 - [ ] Set up .env with all API keys
 - [ ] Deploy bare FastAPI to Render (just /health endpoint)
@@ -18,18 +18,18 @@
 - [ ] Implement webhook handler routing
 - [ ] Implement lead storage in Supabase
 - [ ] Set up Gmail app password + test email alerts
-- [ ] Test Exotel SMS API
+- [ ] Test email alerts via Gmail SMTP
 - [ ] Test: POST mock webhook JSON → lead appears in Supabase → email received
 
 ## Week 3: Voice Integration
 **Goal: First real phone call answered by AI**
 
 - [ ] Find suitable Hindi female voice on ElevenLabs (test 3-4 voices)
-- [ ] Configure Exotel virtual number + SIP trunk to Bolna
+- [ ] Buy Vobiz number and link to Bolna agent
 - [ ] Run onboard_client.py for Sharma Properties demo
 - [ ] Make first test call
 - [ ] Iterate on system prompt based on call quality
-- [ ] Test: Call Exotel number → Priya answers → lead captured → alert sent
+- [ ] Test: Call Vobiz number → Priya answers → lead captured → alert sent
 
 ## Week 4: Chat Widget + Demo Polish
 **Goal: Callable demo + embeddable chat ready to show clients**

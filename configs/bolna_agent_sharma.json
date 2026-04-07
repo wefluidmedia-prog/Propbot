@@ -29,11 +29,11 @@
                     "keywords": ["Hindi", "English", "property", "flat", "BHK"]
                 },
                 "input": {
-                    "provider": "exotel",
+                    "provider": "vobiz",
                     "format": "pcm"
                 },
                 "output": {
-                    "provider": "exotel",
+                    "provider": "vobiz",
                     "format": "pcm"
                 }
             },
@@ -92,6 +92,6 @@
     "metadata": {
         "client_id": "<<SHARMA_CLIENT_UUID — generated during onboarding>>"
     },
-    "telephony_provider": "exotel",
-    "phone_number": "<<EXOTEL_VIRTUAL_NUMBER>>"
+    "telephony_provider": "vobiz",
+    "phone_number": "<<VOBIZ_VIRTUAL_NUMBER>>"
 }

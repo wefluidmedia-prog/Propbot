@@ -3,7 +3,7 @@ Bolna.ai VoiceEngine implementation (primary provider).
 
 Bolna is an Indian open-source voice AI platform (YC-backed) with:
 - Native Hindi/Hinglish support (10+ Indian languages, 50+ accents)
-- Built-in Exotel integration
+- Built-in Vobiz integration
 - Claude support via LiteLLM/OpenRouter
 - ~$0.06/min total cost (vs Vapi's $0.30/min)
 
@@ -11,8 +11,12 @@ API docs: https://docs.bolna.ai/
 GitHub: https://github.com/bolna-ai/bolna
 """
 
+import logging
+
 import httpx
 from app.voice.base import VoiceEngine, AgentConfig, AgentHandle, NormalizedEvent
+
+logger = logging.getLogger(__name__)
 
 
 class BolnaEngine(VoiceEngine):
@@ -38,12 +42,19 @@ class BolnaEngine(VoiceEngine):
             resp.raise_for_status()
             data = resp.json()
 
-        return AgentHandle(
+        handle = AgentHandle(
             provider="bolna",
             agent_id=data.get("agent_id", data.get("id", "")),
             phone_number=config.telephony_number,
             raw_config=data,
         )
+        logger.info(
+            "Bolna agent created: id=%s telephony_provider=%s phone_number=%s",
+            handle.agent_id,
+            payload.get("agent_config", {}).get("telephony_provider", "none"),
+            config.telephony_number or "none",
+        )
+        return handle
 
     async def update_agent(self, agent_id: str, config: AgentConfig) -> AgentHandle:
         """Update an existing Bolna agent."""
@@ -58,12 +69,19 @@ class BolnaEngine(VoiceEngine):
             resp.raise_for_status()
             data = resp.json()
 
-        return AgentHandle(
+        handle = AgentHandle(
             provider="bolna",
             agent_id=agent_id,
             phone_number=config.telephony_number,
             raw_config=data,
         )
+        logger.info(
+            "Bolna agent updated: id=%s telephony_provider=%s phone_number=%s",
+            agent_id,
+            payload.get("agent_config", {}).get("telephony_provider", "none"),
+            config.telephony_number or "none",
+        )
+        return handle
 
     async def delete_agent(self, agent_id: str) -> bool:
         """Delete a Bolna agent."""
@@ -83,6 +101,49 @@ class BolnaEngine(VoiceEngine):
             )
             resp.raise_for_status()
             return resp.json()
+
+    async def trigger_outbound_call(
+        self,
+        agent_id: str,
+        recipient_phone: str,
+        from_phone: str = "",
+    ) -> dict:
+        """
+        Trigger an outbound call via Bolna.
+
+        Bolna API: POST /call
+        Required: agent_id, recipient_phone_number (E.164 format e.g. +919876543210)
+        Optional: from_phone_number (override the number pool assignment)
+
+        Returns Bolna response: {"message": "done", "status": "queued", "execution_id": "..."}
+        """
+        payload: dict = {
+            "agent_id": agent_id,
+            "recipient_phone_number": recipient_phone,
+        }
+        if from_phone:
+            payload["from_phone_number"] = from_phone
+
+        logger.info(
+            "Triggering outbound call: agent_id=%s recipient=%s",
+            agent_id,
+            recipient_phone,
+        )
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                f"{self.api_url}/call",
+                json=payload,
+                headers=self.headers,
+            )
+            data = resp.json()
+
+        logger.info(
+            "Outbound call response: status=%s execution_id=%s",
+            data.get("status"),
+            data.get("execution_id"),
+        )
+        return data
 
     def parse_webhook(self, payload: dict) -> NormalizedEvent:
         """
@@ -185,11 +246,11 @@ class BolnaEngine(VoiceEngine):
                             "keywords": ", ".join(config.language_hints),
                         },
                         "input": {
-                            "provider": "exotel",
+                            "provider": "vobiz",
                             "format": "pcm",
                         },
                         "output": {
-                            "provider": "exotel",
+                            "provider": "vobiz",
                             "format": "pcm",
                         },
                     },
@@ -203,7 +264,7 @@ class BolnaEngine(VoiceEngine):
         }
 
         if config.telephony_number:
-            agent_config["telephony_provider"] = "exotel"
+            agent_config["telephony_provider"] = "vobiz"
             agent_config["phone_number"] = config.telephony_number
 
         return {

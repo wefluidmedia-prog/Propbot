@@ -1,8 +1,7 @@
 """
-Alert service — sends email + SMS notifications to agents.
+Alert service — sends email notifications to agents.
 
 Email: Gmail SMTP with app password
-SMS: Exotel SMS API
 """
 
 import asyncio
@@ -12,7 +11,6 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from html import escape
 
-import httpx
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -20,11 +18,10 @@ logger = logging.getLogger(__name__)
 
 async def send_lead_alert(client_data: dict, lead_data: dict) -> None:
     """
-    Send email + SMS alert to the agent about a new lead.
+    Send email alert to the agent about a new lead.
     Called asynchronously — failures are logged but don't block the caller.
     """
     agent_email = client_data.get("agent_email", "")
-    agent_phone = client_data.get("agent_phone", "")
     business_name = client_data.get("business_name", "")
 
     caller_name = lead_data.get("caller_name") or lead_data.get("name") or "Unknown"
@@ -61,27 +58,11 @@ async def send_lead_alert(client_data: dict, lead_data: dict) -> None:
         except Exception as e:
             logger.error(f"Email alert failed: {e}")
 
-    # SMS
-    if agent_phone and settings.EXOTEL_ACCOUNT_SID:
-        sms_text = (
-            f"PropBot: New {source} lead!\n"
-            f"Name: {caller_name}\n"
-            f"Phone: {caller_phone}\n"
-            f"Looking: {property_type} in {area}\n"
-            f"Budget: {budget_min}-{budget_max}\n"
-            f"Urgency: {urgency}"
-        )
-        try:
-            await _send_exotel_sms(to=agent_phone, message=sms_text)
-            logger.info("SMS alert sent")
-        except Exception as e:
-            logger.error(f"SMS alert failed: {e}")
 
 
 async def send_callback_alert(client_data: dict, callback_data: dict) -> None:
     """Send alert for a callback request from chat widget."""
     agent_email = client_data.get("agent_email", "")
-    agent_phone = client_data.get("agent_phone", "")
     visitor_name = callback_data.get("visitor_name") or callback_data.get("name") or "Website visitor"
     visitor_phone = callback_data.get("visitor_phone") or callback_data.get("phone", "")
 
@@ -103,12 +84,6 @@ async def send_callback_alert(client_data: dict, callback_data: dict) -> None:
         except Exception as e:
             logger.error(f"Callback email alert failed: {e}")
 
-    if agent_phone and settings.EXOTEL_ACCOUNT_SID:
-        sms_text = f"PropBot: Callback request! {visitor_name} — {visitor_phone}. Call them back ASAP."
-        try:
-            await _send_exotel_sms(to=agent_phone, message=sms_text)
-        except Exception as e:
-            logger.error(f"Callback SMS alert failed: {e}")
 
 
 def _send_email(to: str, subject: str, body: str) -> None:
@@ -123,23 +98,6 @@ def _send_email(to: str, subject: str, body: str) -> None:
         server.login(settings.SMTP_EMAIL, settings.SMTP_APP_PASSWORD)
         server.send_message(msg)
 
-
-async def _send_exotel_sms(to: str, message: str) -> None:
-    """Send SMS via Exotel API."""
-    url = (
-        f"https://{settings.EXOTEL_SUBDOMAIN}/v1/Accounts/"
-        f"{settings.EXOTEL_ACCOUNT_SID}/Sms/send"
-    )
-    async with httpx.AsyncClient(timeout=10) as client:
-        await client.post(
-            url,
-            auth=(settings.EXOTEL_API_KEY, settings.EXOTEL_API_TOKEN),
-            data={
-                "From": settings.EXOTEL_CALLER_ID,
-                "To": to,
-                "Body": message,
-            },
-        )
 
 
 def _format_lead_email(

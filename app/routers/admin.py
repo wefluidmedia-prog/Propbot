@@ -182,6 +182,77 @@ async def retry_provision(client_id: str, request: Request):
     return result
 
 
+# ─── Test Call ───────────────────────────────────────────────────
+
+@router.post("/api/test-call")
+async def test_call(request: Request):
+    """
+    Trigger an outbound test call via Bolna → Vobiz.
+
+    Body:
+        client_id           — whose Bolna agent to use
+        recipient_phone     — E.164 number to call, e.g. +919876543210
+
+    Returns Bolna's response: {status, execution_id, message}
+    """
+    _require_admin(request)
+    body = await request.json()
+
+    client_id = body.get("client_id", "").strip()
+    recipient_phone = body.get("recipient_phone", "").strip()
+
+    if not client_id:
+        raise HTTPException(status_code=400, detail="client_id is required")
+    if not recipient_phone:
+        raise HTTPException(status_code=400, detail="recipient_phone is required (E.164 format, e.g. +919876543210)")
+
+    # Look up the client's Bolna agent
+    db = get_supabase()
+    result = db.table("clients").select(
+        "id, business_name, bolna_agent_id, exotel_number, setup_status"
+    ).eq("id", client_id).single().execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    client = result.data
+    agent_id = client.get("bolna_agent_id")
+
+    if not agent_id:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Client '{client['business_name']}' has no Bolna agent provisioned yet (setup_status: {client.get('setup_status')})"
+        )
+
+    # Trigger via BolnaEngine
+    from app.voice.bolna_engine import BolnaEngine
+    engine = BolnaEngine(
+        api_key=settings.BOLNA_API_KEY,
+        api_url=settings.BOLNA_API_URL,
+    )
+
+    logger.info(
+        "Admin test-call: client=%s agent_id=%s recipient=%s",
+        client["business_name"], agent_id, recipient_phone,
+    )
+
+    try:
+        bolna_resp = await engine.trigger_outbound_call(
+            agent_id=agent_id,
+            recipient_phone=recipient_phone,
+        )
+    except Exception as e:
+        logger.error("Test call failed: %s", e)
+        raise HTTPException(status_code=502, detail=f"Bolna API error: {e}")
+
+    return {
+        "client": client["business_name"],
+        "agent_id": agent_id,
+        "recipient_phone": recipient_phone,
+        "bolna_response": bolna_resp,
+    }
+
+
 # ─── Admin SPA ───────────────────────────────────────────────────
 
 @router.get("")

@@ -1,7 +1,7 @@
 # PropBot — Claude Code Instructions
 
 ## Stack
-FastAPI + Supabase (PostgreSQL) + Bolna.ai (voice) + Exotel (telephony) + Claude Sonnet 4 + Render (hosting)
+FastAPI + Supabase (PostgreSQL) + Bolna.ai (voice) + Vobiz (telephony) + Claude Sonnet 4 + Render (hosting)
 
 ## Environment
 - OS: Windows 11 with OneDrive active
