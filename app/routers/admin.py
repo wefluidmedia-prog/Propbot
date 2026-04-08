@@ -120,7 +120,7 @@ async def list_clients(request: Request):
     result = db.table("clients").select(
         "id, business_name, agent_name, agent_email, agent_phone, "
         "plan_type, subscription_status, trial_ends_at, "
-        "vobiz_number, setup_status, created_at"
+        "vobiz_number, bolna_agent_id, setup_status, created_at"
     ).order("created_at", desc=True).execute()
     return {"clients": result.data or []}
 
@@ -610,20 +610,24 @@ function fmtDate(d){
 }
 
 function actionCell(c){
+  const parts=[];
+  // No Bolna agent → show Create Agent button (highest priority)
+  if(!c.bolna_agent_id){
+    parts.push('<button class="btn-retry btn-create-agent" data-id="'+c.id+'"'
+      +' style="background:#7c3aed;">Create Agent</button>');
+  }
   if(c.setup_status==='pending_number'){
-    return '<div style="display:flex;gap:6px;align-items:center;">'
+    parts.push('<div style="display:flex;gap:6px;align-items:center;">'
       +'<input class="num-input" data-id="'+c.id+'" placeholder="+91XXXXXXXXXX"'
       +' style="padding:5px 8px;border:1.5px solid #d1d5db;border-radius:6px;font-size:12px;width:140px;">'
-      +'<button class="btn-retry btn-assign" data-id="'+c.id+'">Assign</button>'
-      +'</div>';
+      +'<button class="btn-retry btn-assign" data-id="'+c.id+'">Assign #</button>'
+      +'</div>');
+  } else if(c.setup_status==='ready' && c.vobiz_number && c.bolna_agent_id){
+    parts.push('<span style="color:#059669;font-weight:600;font-size:12px;">&#10003; Ready</span>');
+  } else if(c.setup_status==='failed'||c.setup_status==='provisioning'){
+    parts.push('<button class="btn-retry btn-reprovision" data-id="'+c.id+'">Retry</button>');
   }
-  if(c.setup_status==='ready' && c.vobiz_number){
-    return '<span style="color:#059669;font-weight:600;font-size:12px;">&#10003; Ready</span>';
-  }
-  if(c.setup_status==='failed'||c.setup_status==='provisioning'){
-    return '<button class="btn-retry btn-reprovision" data-id="'+c.id+'">Retry</button>';
-  }
-  return '<span style="color:#94a3b8;font-size:12px;">'+( c.setup_status||'-')+'</span>';
+  return parts.join(' ') || '<span style="color:#94a3b8;font-size:12px;">'+( c.setup_status||'-')+'</span>';
 }
 
 function renderClients(list){
@@ -648,6 +652,9 @@ function renderClients(list){
   });
   document.querySelectorAll('.btn-reprovision').forEach(btn=>{
     btn.addEventListener('click',function(){retryProvision(this.dataset.id);});
+  });
+  document.querySelectorAll('.btn-create-agent').forEach(btn=>{
+    btn.addEventListener('click',function(){createAgent(this.dataset.id);});
   });
 }
 
@@ -683,6 +690,23 @@ async function retryProvision(id){
   const d=await r.json();
   showToast(d.phone_assigned?'Phone assigned: '+d.phone_assigned:'Done (no phone available yet)',!!d.phone_assigned);
   loadAll();
+}
+
+async function createAgent(id){
+  if(!confirm('Create Bolna agent for this client? This may take ~10 seconds.')) return;
+  showToast('Creating agent...', true);
+  const r=await fetch('/admin/api/provision-agent/'+id,{
+    method:'POST',
+    headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},
+    body:'{}'
+  });
+  const d=await r.json();
+  if(d.bolna_agent_id){
+    showToast('Agent created: '+d.bolna_agent_id.slice(0,8)+'... | status: '+d.setup_status, true);
+    loadAll();
+  } else {
+    showToast('Error: '+(d.detail||JSON.stringify(d)), false);
+  }
 }
 
 async function assignNumber(id){
