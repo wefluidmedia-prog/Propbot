@@ -197,17 +197,18 @@ async def assign_number(client_id: str, request: Request):
     ).eq("phone_number", phone_number).execute()
     db.table("clients").update({"vobiz_number": phone_number}).eq("id", client_id).execute()
 
-    # 3. Update Bolna agent with the number
+    # 3. Create or update Bolna agent with the phone number.
+    # vobiz_number is now stamped in DB, so update_voice_agent() will pick it up.
+    # If no agent exists yet (bolna_agent_id is null), update_voice_agent() calls
+    # provision_voice_agent() to create one first.
     bolna_updated = False
-    agent_id = info.get("bolna_agent_id")
-    if agent_id:
-        try:
-            from app.services.onboarding_service import update_voice_agent
-            # Re-fetch client now that vobiz_number is set
-            await update_voice_agent(client_id)
-            bolna_updated = True
-        except Exception as e:
-            logger.warning("Bolna update failed for %s during assign-number: %s", client_id, e)
+    try:
+        from app.services.onboarding_service import update_voice_agent
+        await update_voice_agent(client_id)
+        bolna_updated = True
+        logger.info("Bolna agent created/updated for client %s with number %s", client_id, phone_number)
+    except Exception as e:
+        logger.error("Bolna create/update failed for client %s: %s", client_id, e, exc_info=True)
 
     # 4. Set status ready
     db.table("clients").update({"setup_status": "ready"}).eq("id", client_id).execute()
@@ -696,7 +697,7 @@ async function assignNumber(id){
   });
   const d=await r.json();
   if(d.status==='assigned'){
-    showToast('Assigned '+d.phone_number+' | Bolna: '+(d.bolna_updated?'updated':'pending')+' | Client emailed',true);
+    showToast('Assigned '+d.phone_number+' | Bolna: '+(d.bolna_updated?'agent ready':'FAILED — check server logs')+' | Client emailed',d.bolna_updated);
     loadAll();
   } else {
     showToast('Error: '+(d.detail||JSON.stringify(d)),false);
