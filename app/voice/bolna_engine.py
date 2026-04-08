@@ -39,19 +39,41 @@ class BolnaEngine(VoiceEngine):
                 json=payload,
                 headers=self.headers,
             )
+            if not resp.is_success:
+                logger.error(
+                    "Bolna create_agent failed: status=%s body=%s payload_voice=%s",
+                    resp.status_code,
+                    resp.text[:500],
+                    payload.get("agent_config", {})
+                        .get("tasks", [{}])[0]
+                        .get("tools_config", {})
+                        .get("synthesizer", {})
+                        .get("provider_config", {})
+                        .get("voice_id", "MISSING"),
+                )
             resp.raise_for_status()
             data = resp.json()
 
+        agent_id = data.get("agent_id") or data.get("id") or ""
+        if not agent_id:
+            logger.error("Bolna create_agent returned no agent_id: %s", data)
+            raise ValueError(f"Bolna returned no agent_id: {data}")
+
         handle = AgentHandle(
             provider="bolna",
-            agent_id=data.get("agent_id", data.get("id", "")),
+            agent_id=agent_id,
             phone_number=config.telephony_number,
             raw_config=data,
         )
         logger.info(
-            "Bolna agent created: id=%s telephony_provider=%s phone_number=%s",
+            "Bolna agent created: id=%s voice=%s phone=%s",
             handle.agent_id,
-            payload.get("agent_config", {}).get("telephony_provider", "none"),
+            payload.get("agent_config", {})
+                .get("tasks", [{}])[0]
+                .get("tools_config", {})
+                .get("synthesizer", {})
+                .get("provider_config", {})
+                .get("voice_id", "default"),
             config.telephony_number or "none",
         )
         return handle
@@ -66,6 +88,11 @@ class BolnaEngine(VoiceEngine):
                 json=payload,
                 headers=self.headers,
             )
+            if not resp.is_success:
+                logger.error(
+                    "Bolna update_agent failed: agent_id=%s status=%s body=%s",
+                    agent_id, resp.status_code, resp.text[:500],
+                )
             resp.raise_for_status()
             data = resp.json()
 
@@ -214,8 +241,15 @@ class BolnaEngine(VoiceEngine):
             ]
         }
 
+    # Default voice (Priya) — used when client hasn't selected a voice yet.
+    # Must be a voice_id registered in Bolna's voice_profiles.
+    DEFAULT_VOICE_ID = "QTKSa2Iyv0yoxvXY2V8a"
+
     def _build_agent_payload(self, config: AgentConfig) -> dict:
         """Convert AgentConfig to Bolna API v2 payload."""
+        # Bolna rejects empty voice_ids — fall back to default (Priya)
+        voice_id = config.voice_id or self.DEFAULT_VOICE_ID
+
         agent_config = {
             "agent_name": config.agent_name,
             "agent_welcome_message": config.first_message,
@@ -231,8 +265,8 @@ class BolnaEngine(VoiceEngine):
                             "caching": True,
                             "audio_format": "wav",
                             "provider_config": {
-                                "voice": config.voice_id,
-                                "voice_id": config.voice_id,
+                                "voice": voice_id,
+                                "voice_id": voice_id,
                                 "model": "eleven_turbo_v2_5",
                                 "speed": 1.0,
                                 "style": 0.4,
