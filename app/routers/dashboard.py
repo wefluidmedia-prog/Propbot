@@ -168,9 +168,9 @@ async def get_profile(client_id: str = Depends(_get_client_id)):
     db = get_supabase()
     result = db.table("clients").select(
         "id, business_name, agent_name, agent_email, agent_phone, city, specialty, "
-        "assistant_persona_name, voice_gender, voice_id, subscription_status, "
+        "assistant_persona_name, voice_gender, voice_id, subscription_status, plan_type, "
         "trial_ends_at, exotel_number, setup_status, bolna_agent_id, created_at, first_message, "
-        "knowledge_base"
+        "knowledge_base, language_style"
     ).eq("id", client_id).single().execute()
     return result.data
 
@@ -181,7 +181,7 @@ async def update_profile(request: Request, client_id: str = Depends(_get_client_
     allowed = {
         "business_name", "agent_name", "agent_phone", "city", "specialty",
         "assistant_persona_name", "voice_gender", "voice_id", "first_message",
-        "knowledge_base", "plan_type",
+        "knowledge_base", "plan_type", "language_style",
     }
     update_data = {k: v for k, v in body.items() if k in allowed and v is not None}
     if not update_data:
@@ -191,6 +191,19 @@ async def update_profile(request: Request, client_id: str = Depends(_get_client_
     if not result.data:
         raise HTTPException(404, "Client not found")
     return result.data[0]
+
+
+@router.post("/api/assistant/sync")
+async def sync_assistant(client_id: str = Depends(_get_client_id)):
+    """Push updated assistant settings (name, greeting, language style) to Bolna."""
+    from app.services.onboarding_service import update_voice_agent
+    try:
+        await update_voice_agent(client_id)
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning("Bolna sync failed for %s: %s", client_id, e)
+        # Don't fail the request — DB save already succeeded
+    return {"ok": True}
 
 
 @router.get("/api/leads")
@@ -1010,107 +1023,60 @@ function renderUsage(){
 /* ══════════════════════════════════════════════
    ASSISTANT TAB
 ══════════════════════════════════════════════ */
-var PERSONAS = [
-  {id:'Priya',  avatar:'👩', name:'Priya',  lang:'Hindi • English'},
-  {id:'Arjun',  avatar:'👨', name:'Arjun',  lang:'Hindi • English'},
-  {id:'Sneha',  avatar:'👩', name:'Sneha',  lang:'Hindi • English'},
-  {id:'Vikram', avatar:'👨', name:'Vikram', lang:'Hindi • English'},
-  {id:'Ananya', avatar:'👩', name:'Ananya', lang:'English focus'},
-  {id:'Raj',    avatar:'👨', name:'Raj',    lang:'Hinglish'},
-];
-
 function renderAssistant(){
   var c = document.getElementById('content');
-  var sel = profile.assistant_persona_name || 'Priya';
-  var gender = profile.voice_gender || 'female';
-
-  var personaHtml = PERSONAS.map(function(p){
-    return '<div class="persona-opt'+(sel===p.id?' selected':'')+'" data-persona="'+p.id+'">' +
-      '<div class="p-avatar">'+p.avatar+'</div>' +
-      '<div class="p-name">'+p.name+'</div>' +
-      '<div class="p-lang">'+p.lang+'</div>' +
-    '</div>';
-  }).join('');
+  var assistantName = profile.assistant_persona_name || 'Priya';
+  var langStyle = profile.language_style || 'hinglish';
 
   c.innerHTML =
     '<div class="section-card">' +
       '<div class="section-header"><h3>AI Assistant Settings</h3></div>' +
       '<div class="settings-form">' +
         '<div class="s-field">' +
-          '<label>Choose Assistant Persona</label>' +
-          '<div class="persona-grid" id="persona-grid">'+personaHtml+'</div>' +
-          '<div class="hint">Pick a name and style for your AI receptionist. You can rename it below.</div>' +
+          '<label>Assistant Name</label>' +
+          '<input type="text" id="assistant-name" value="'+esc(assistantName)+'" placeholder="Priya" maxlength="30" />' +
+          '<div class="hint">What should callers call your assistant? (e.g. Priya, Rekha, Anjali)</div>' +
         '</div>' +
-        '<div class="s-row">' +
-          '<div class="s-field">' +
-            '<label>Display Name (what callers hear)</label>' +
-            '<input type="text" id="persona-name" value="'+esc(sel)+'" placeholder="Priya" />' +
-            '<div class="hint">e.g. rename "Priya" to "Rekha" if you prefer</div>' +
-          '</div>' +
-          '<div class="s-field">' +
-            '<label>Voice Gender</label>' +
-            '<div class="gender-opts" id="gender-opts">' +
-              '<div class="gender-btn'+(gender==='female'?' selected':'')+'" data-gender="female">👩 Female</div>' +
-              '<div class="gender-btn'+(gender==='male'?' selected':'')+'" data-gender="male">👨 Male</div>' +
-            '</div>' +
-          '</div>' +
+        '<div class="s-field">' +
+          '<label>Language Style</label>' +
+          '<select id="lang-style">' +
+            '<option value="hinglish"'+(langStyle==='hinglish'?' selected':'')+'>Hindi + English mix (recommended)</option>' +
+            '<option value="english"'+(langStyle==='english'?' selected':'')+'>Mostly English</option>' +
+            '<option value="casual_hinglish"'+(langStyle==='casual_hinglish'?' selected':'')+'>Casual Hinglish</option>' +
+          '</select>' +
+          '<div class="hint">Controls how your assistant speaks during calls.</div>' +
         '</div>' +
         '<div class="s-field">' +
           '<label>Opening Greeting</label>' +
           '<textarea id="first-msg" placeholder="What the assistant says when picking up a call">'+esc(profile.first_message||'')+'</textarea>' +
-          '<div class="hint">Spoken in Hindi/English mix. Use {business_name} for your business name.</div>' +
+          '<div class="hint">Use {business_name} for your business name. Keep it under 2 sentences.</div>' +
         '</div>' +
         '<div>' +
           '<button class="btn-save" id="save-assistant-btn">Save Changes</button>' +
-          '<span class="save-msg" id="save-msg">Saved ✓</span>' +
+          '<span class="save-msg" id="save-msg">Assistant updated!</span>' +
         '</div>' +
       '</div>' +
     '</div>';
 
-  // Persona selection
-  document.querySelectorAll('.persona-opt').forEach(function(el){
-    el.addEventListener('click', function(){
-      document.querySelectorAll('.persona-opt').forEach(function(x){ x.classList.remove('selected'); });
-      this.classList.add('selected');
-      // Auto-fill name if user hasn't edited
-      document.getElementById('persona-name').value = this.dataset.persona;
-      // Auto-set gender
-      var p = PERSONAS.find(function(x){ return x.id===el.dataset.persona; });
-      if(p){
-        var isMale = p.avatar==='👨';
-        document.querySelectorAll('.gender-btn').forEach(function(b){ b.classList.remove('selected'); });
-        document.querySelector('.gender-btn[data-gender="'+(isMale?'male':'female')+'"]').classList.add('selected');
-      }
-    });
-  });
-
-  // Gender selection
-  document.querySelectorAll('.gender-btn').forEach(function(el){
-    el.addEventListener('click', function(){
-      document.querySelectorAll('.gender-btn').forEach(function(x){ x.classList.remove('selected'); });
-      this.classList.add('selected');
-    });
-  });
-
-  // Save
   document.getElementById('save-assistant-btn').addEventListener('click', function(){
     var btn = this;
-    var personaName = document.getElementById('persona-name').value.trim() ||
-      (document.querySelector('.persona-opt.selected')||{dataset:{persona:'Priya'}}).dataset.persona;
-    var genderEl = document.querySelector('.gender-btn.selected');
-    var gender = genderEl ? genderEl.dataset.gender : 'female';
+    var name = document.getElementById('assistant-name').value.trim() || 'Priya';
+    var lang = document.getElementById('lang-style').value;
     var firstMsg = document.getElementById('first-msg').value.trim();
     btn.disabled=true; btn.textContent='Saving…';
     api('/dashboard/api/me', {
       method:'PATCH',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({assistant_persona_name:personaName, voice_gender:gender, first_message:firstMsg})
+      body:JSON.stringify({assistant_persona_name:name, language_style:lang, first_message:firstMsg})
     }).then(function(updated){
       profile = Object.assign(profile, updated);
+      // Push updated first_message to Bolna agent
+      return api('/dashboard/api/assistant/sync', {method:'POST'});
+    }).then(function(){
       btn.disabled=false; btn.textContent='Save Changes';
       var msg=document.getElementById('save-msg');
       msg.classList.add('show');
-      setTimeout(function(){ msg.classList.remove('show'); }, 2000);
+      setTimeout(function(){ msg.classList.remove('show'); }, 2500);
     }).catch(function(){
       btn.disabled=false; btn.textContent='Save Changes';
       alert('Failed to save. Please try again.');
@@ -1280,12 +1246,12 @@ function renderBilling(){
       html +=
         '<div style="margin:20px 0 6px;font-size:13px;font-weight:600;color:#374151;">Choose your plan:</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;" id="plan-picker">' +
-          '<div class="plan-pick'+(planType==='starter'?' plan-pick-sel':'')+'" data-plan="starter" onclick="selectBillingPlan(\'starter\')">' +
+          '<div class="plan-pick'+(planType==='starter'?' plan-pick-sel':'')+'" data-plan="starter">' +
             '<div style="font-size:16px;font-weight:800;">₹2,499<span style="font-size:12px;font-weight:500;color:#6B7280;">/mo</span></div>' +
             '<div style="font-size:13px;font-weight:600;margin:4px 0 2px;">Starter</div>' +
             '<div style="font-size:12px;color:#6B7280;">50 calls/month</div>' +
           '</div>' +
-          '<div class="plan-pick'+(planType==='pro'?' plan-pick-sel':'')+'" data-plan="pro" onclick="selectBillingPlan(\'pro\')">' +
+          '<div class="plan-pick'+(planType==='pro'?' plan-pick-sel':'')+'" data-plan="pro">' +
             '<div style="font-size:16px;font-weight:800;">₹4,999<span style="font-size:12px;font-weight:500;color:#6B7280;">/mo</span></div>' +
             '<div style="font-size:13px;font-weight:600;margin:4px 0 2px;">Pro</div>' +
             '<div style="font-size:12px;color:#6B7280;">Unlimited calls</div>' +
@@ -1315,6 +1281,26 @@ function renderBilling(){
     html += '</div>';
     c.innerHTML = html;
 
+    // Track selected plan locally (fixes IIFE scope bug with inline onclick)
+    var selectedPlan = planType;
+    var fees = {starter:'₹2,499', pro:'₹4,999'};
+    document.querySelectorAll('.plan-pick').forEach(function(el){
+      el.addEventListener('click', function(){
+        selectedPlan = el.dataset.plan;
+        document.querySelectorAll('.plan-pick').forEach(function(x){
+          x.classList.toggle('plan-pick-sel', x.dataset.plan === selectedPlan);
+        });
+        var btn = document.getElementById('sub-btn');
+        if(btn) btn.textContent = 'Subscribe Now — '+fees[selectedPlan]+'/month';
+        // Persist to DB so billing service reads correct plan on subscribe
+        fetch('/dashboard/api/me', {
+          method:'PATCH',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({plan_type: selectedPlan})
+        });
+      });
+    });
+
     var subBtn = document.getElementById('sub-btn');
     if(subBtn) subBtn.onclick = function(){
       this.disabled=true; this.textContent='Redirecting…';
@@ -1334,23 +1320,6 @@ function renderBilling(){
     };
   }).catch(function(){
     c.innerHTML = '<div class="empty"><div class="e-icon">💳</div><h3>Billing unavailable</h3><p>Please try again later.</p></div>';
-  });
-}
-
-function selectBillingPlan(plan){
-  // Update UI selection
-  document.querySelectorAll('.plan-pick').forEach(function(el){
-    el.classList.toggle('plan-pick-sel', el.dataset.plan === plan);
-  });
-  // Persist plan_type to DB, then update button label
-  var fees = {starter:'₹2,499', pro:'₹4,999'};
-  fetch('/dashboard/api/me', {
-    method:'PATCH',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({plan_type: plan})
-  }).then(function(){
-    var btn = document.getElementById('sub-btn');
-    if(btn) btn.textContent = 'Subscribe Now — '+fees[plan]+'/month';
   });
 }
 
