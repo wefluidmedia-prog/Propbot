@@ -216,6 +216,30 @@ async def get_available_slots(client_id: str, date_str: str) -> list[dict]:
     return slots
 
 
+async def get_slots_next_days(client_id: str, days: int = 7) -> list[str]:
+    """Return up to 3 available viewing slots across the next `days` days.
+
+    Returns human-readable strings like "Thursday 10 April at 11:00 AM".
+    Returns an empty list if no calendar is connected or no slots are free.
+    """
+    from datetime import date, timedelta as td
+    results = []
+    today = date.today()
+    for offset in range(1, days + 1):
+        if len(results) >= 3:
+            break
+        d = today + td(days=offset)
+        slots = await get_available_slots(client_id, d.isoformat())
+        for slot in slots:
+            if len(results) >= 3:
+                break
+            dt = datetime.fromisoformat(slot["start"])
+            # e.g. "Thursday 10 April at 11:00 AM"
+            label = f"{dt.strftime('%A')} {dt.day} {dt.strftime('%B')} at {dt.strftime('%I:%M %p').lstrip('0')}"
+            results.append(label)
+    return results
+
+
 async def book_viewing(
     client_id: str,
     attendee_name: str,

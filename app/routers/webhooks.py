@@ -170,6 +170,8 @@ async def _handle_tool_calls(engine, event) -> dict:
                     reason=params.get("reason", "Caller requested agent"),
                     caller_phone=params.get("caller_phone", ""),
                 )
+            elif name == "check_availability":
+                result = await _handle_check_availability(client_id=event.client_id)
             elif name == "book_viewing":
                 result = await _handle_book_viewing(
                     client_id=event.client_id,
@@ -228,3 +230,35 @@ async def _handle_book_viewing(client_id: str, params: dict) -> str:
     except Exception as e:
         logger.error(f"book_viewing failed: {e}")
         return "Sorry, I could not book the viewing right now. The agent will call you to schedule."
+
+
+async def _handle_check_availability(client_id: str) -> str:
+    """Handle the check_availability tool call from voice AI.
+
+    Checks the agent's Google Calendar for the next 7 days and returns
+    up to 3 available slots as a spoken-friendly string. Falls back
+    gracefully if no calendar is connected.
+    """
+    try:
+        from app.services.calendar_service import get_slots_next_days, is_calendar_connected
+
+        if not await is_calendar_connected(client_id):
+            from app.db.supabase_client import get_supabase
+            db = get_supabase()
+            row = db.table("clients").select("agent_name").eq("id", client_id).single().execute().data
+            agent_name = (row or {}).get("agent_name", "the agent")
+            return f"I'll have {agent_name} call you back to arrange a viewing at a time that suits you."
+
+        slots = await get_slots_next_days(client_id)
+        if not slots:
+            return "There are no open slots in the next week. I'll note your interest and the agent will call you to arrange a visit."
+
+        if len(slots) == 1:
+            return f"The agent is available on {slots[0]}. Would that work for you?"
+        elif len(slots) == 2:
+            return f"The agent is available on {slots[0]} or {slots[1]}. Which works for you?"
+        else:
+            return f"The agent has openings on {slots[0]}, {slots[1]}, or {slots[2]}. Which works best for you?"
+    except Exception as e:
+        logger.error(f"check_availability failed: {e}")
+        return "I couldn't check the calendar right now. The agent will call you to arrange a visit."

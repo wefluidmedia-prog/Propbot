@@ -175,10 +175,24 @@ VOICE_TOOLS = [
         },
     },
     {
+        "name": "check_availability",
+        "description": (
+            "Check when the agent is available for a property viewing. "
+            "Call this when the caller wants to schedule a site visit — it returns "
+            "the next available time slots so you can offer them to the caller. "
+            "Call this BEFORE book_viewing."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+    },
+    {
         "name": "book_viewing",
         "description": (
             "Book a property viewing appointment on the agent's calendar. "
-            "Call this when the caller wants to schedule a site visit. "
+            "Call this after the caller has chosen a slot from check_availability. "
             "Confirm the date, time, and property with the caller before booking."
         ),
         "parameters": {
