@@ -51,7 +51,10 @@ async def subscribe(request: Request):
     from app.services.billing_service import create_subscription
     try:
         result = await create_subscription(client_id)
-        return {"checkout_url": result["short_url"]}
+        return {
+            "subscription_id": result["subscription_id"],
+            "razorpay_key": settings.RAZORPAY_KEY_ID,
+        }
     except Exception as e:
         logger.error("Subscription creation failed for client %s: %s", client_id, e)
         raise HTTPException(status_code=500, detail=f"Subscription error: {str(e)}")

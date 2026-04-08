@@ -451,6 +451,7 @@ DASHBOARD_HTML = r"""<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PropBot Dashboard</title>
 <!-- __GA__ -->
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;}
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:#F3F4F6;color:#111827;-webkit-font-smoothing:antialiased;}
@@ -1103,10 +1104,11 @@ function renderListings(){
           'onfocus="this.style.borderColor=\'#FF5722\';this.style.boxShadow=\'0 0 0 3px rgba(255,87,34,0.1)\'" ' +
           'onblur="this.style.borderColor=\'#E5E7EB\';this.style.boxShadow=\'none\'">' + esc(kb) + '</textarea>' +
         '<div style="display:flex;align-items:center;gap:12px;margin-top:16px;">' +
-          '<button id="kb-save" onclick="saveListings()" style="padding:13px 32px;background:#FF5722;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(255,87,34,0.3);transition:all .2s;">Save Listings</button>' +
+          '<button id="kb-save" style="padding:13px 32px;background:#FF5722;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(255,87,34,0.3);transition:all .2s;">Save Listings</button>' +
           '<span id="kb-status" style="font-size:13px;color:#6B7280;"></span>' +
         '</div>' +
       '</div>';
+    document.getElementById('kb-save').addEventListener('click', saveListings);
   });
 }
 function saveListings(){
@@ -1303,10 +1305,32 @@ function renderBilling(){
 
     var subBtn = document.getElementById('sub-btn');
     if(subBtn) subBtn.onclick = function(){
-      this.disabled=true; this.textContent='Redirecting…';
+      subBtn.disabled=true; subBtn.textContent='Processing…';
       api('/api/billing/subscribe', {method:'POST'}).then(function(res){
-        if(res.checkout_url) window.location.href=res.checkout_url;
-        else alert('Could not create subscription. Please try again.');
+        if(res.subscription_id && res.razorpay_key){
+          var rzp = new Razorpay({
+            key: res.razorpay_key,
+            subscription_id: res.subscription_id,
+            name: 'PropBot',
+            description: 'AI Receptionist — Monthly Subscription',
+            theme: {color: '#FF5722'},
+            handler: function(){
+              subBtn.textContent = 'Payment received! ✓';
+              setTimeout(function(){ renderBilling(); }, 2000);
+            },
+            modal: {
+              ondismiss: function(){
+                subBtn.disabled=false;
+                subBtn.textContent='Subscribe Now — '+fees[selectedPlan]+'/month';
+              }
+            }
+          });
+          rzp.open();
+          subBtn.disabled=false;
+        } else {
+          subBtn.disabled=false; subBtn.textContent='Subscribe Now';
+          alert('Could not create subscription. Please try again.');
+        }
       }).catch(function(e){ subBtn.disabled=false; subBtn.textContent='Subscribe Now'; alert('Error: ' + (e && e.detail ? e.detail : 'Could not create subscription. Please try again.')); });
     };
 
