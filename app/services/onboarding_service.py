@@ -4,6 +4,7 @@ Client onboarding service — provisions voice agents automatically.
 Extracted from scripts/onboard_client.py for use by the signup wizard.
 """
 
+import asyncio
 import logging
 
 from app.config import settings
@@ -22,6 +23,9 @@ async def provision_voice_agent(client_id: str) -> str:
 
     Reads client data from DB, builds system prompt, creates agent,
     stores agent_id back in DB, generates API key.
+
+    If the phone pool is empty, sets setup_status='pending_number' (not 'failed')
+    so the founder can assign a number manually via /admin.
 
     Returns the agent_id.
     """
@@ -60,7 +64,7 @@ async def provision_voice_agent(client_id: str) -> str:
         tools=VOICE_TOOLS,
         webhook_url=f"{settings.BASE_URL}/api/webhooks/voice",
         client_id=client_id,
-        telephony_number=client.get("exotel_number", ""),
+        telephony_number=client.get("vobiz_number", ""),
     )
 
     engine = get_voice_engine()
@@ -75,7 +79,7 @@ async def provision_voice_agent(client_id: str) -> str:
         "onboarding_step": 3,
     }).eq("id", client_id).execute()
 
-    # Assign phone number from pool and bind to Bolna agent
+    # Try to assign phone number from pool and bind to Bolna agent
     from app.services.phone_service import assign_phone_number
     phone_number = await assign_phone_number(client_id)
     if phone_number:
@@ -85,14 +89,80 @@ async def provision_voice_agent(client_id: str) -> str:
         db.table("clients").update({"setup_status": "ready"}).eq("id", client_id).execute()
         logger.info("Phone %s assigned and bound to agent for %s", phone_number, business)
     else:
-        db.table("clients").update({"setup_status": "failed"}).eq("id", client_id).execute()
-        logger.critical("No phone numbers available for client %s", client_id)
+        # Pool empty — agent is ready, just needs a number assigned manually
+        db.table("clients").update({"setup_status": "pending_number"}).eq("id", client_id).execute()
+        logger.warning("No phone in pool for client %s — set to pending_number", client_id)
 
     # Generate API key
     raw_key = create_api_key(client_id, label="signup")
     logger.info("API key generated for %s", business)
 
+    # Fire-and-forget: notify founder of new signup
+    asyncio.create_task(_notify_founder_signup(
+        client_id=client_id,
+        business_name=business,
+        agent_name=agent_name,
+        agent_email=client.get("agent_email", ""),
+        agent_phone=client.get("agent_phone", ""),
+        bolna_agent_id=handle.agent_id,
+        phone_assigned=phone_number,
+        setup_status="ready" if phone_number else "pending_number",
+    ))
+
     return handle.agent_id
+
+
+async def _notify_founder_signup(
+    client_id: str,
+    business_name: str,
+    agent_name: str,
+    agent_email: str,
+    agent_phone: str,
+    bolna_agent_id: str,
+    phone_assigned: str | None,
+    setup_status: str,
+) -> None:
+    """Send founder email alert on every new signup."""
+    if not settings.SMTP_EMAIL:
+        return
+    try:
+        from app.services.alert_service import _send_email
+        phone_line = (
+            phone_assigned if phone_assigned
+            else "None — buy a Vobiz number and assign via /admin"
+        )
+        body = f"""
+<div style="font-family:Arial,sans-serif;max-width:600px;">
+  <h2 style="color:#FF5722;">New PropBot Signup</h2>
+  <table style="width:100%;border-collapse:collapse;">
+    <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;">Business</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;">{business_name}</td></tr>
+    <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;">Agent Name</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;">{agent_name}</td></tr>
+    <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;">Email</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;">{agent_email}</td></tr>
+    <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;">Phone</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;">{agent_phone}</td></tr>
+    <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;">Bolna Agent Created</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;">{'Yes: ' + bolna_agent_id if bolna_agent_id else 'No'}</td></tr>
+    <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;">Phone Assigned</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;">{phone_line}</td></tr>
+    <tr><td style="padding:8px;border-bottom:1px solid #eee;font-weight:bold;">Client ID</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;font-family:monospace;">{client_id}</td></tr>
+    <tr><td style="padding:8px;font-weight:bold;">Setup Status</td>
+        <td style="padding:8px;">{setup_status}</td></tr>
+  </table>
+  <p style="margin-top:16px;color:#999;font-size:12px;">PropBot Admin: {settings.BASE_URL}/admin</p>
+</div>"""
+        await asyncio.to_thread(
+            _send_email,
+            to=settings.SMTP_EMAIL,
+            subject=f"New PropBot Signup — {business_name}",
+            body=body,
+        )
+        logger.info("Founder signup alert sent for %s", business_name)
+    except Exception as e:
+        logger.warning("Founder signup alert failed: %s", e)
 
 
 async def update_voice_agent(client_id: str) -> None:
@@ -137,7 +207,7 @@ async def update_voice_agent(client_id: str) -> None:
         tools=VOICE_TOOLS,
         webhook_url=f"{settings.BASE_URL}/api/webhooks/voice",
         client_id=client_id,
-        telephony_number=client.get("exotel_number", ""),
+        telephony_number=client.get("vobiz_number", ""),
     )
 
     engine = get_voice_engine()

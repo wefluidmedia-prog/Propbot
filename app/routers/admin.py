@@ -120,7 +120,7 @@ async def list_clients(request: Request):
     result = db.table("clients").select(
         "id, business_name, agent_name, agent_email, agent_phone, "
         "plan_type, subscription_status, trial_ends_at, "
-        "exotel_number, setup_status, created_at"
+        "vobiz_number, setup_status, created_at"
     ).order("created_at", desc=True).execute()
     return {"clients": result.data or []}
 
@@ -155,13 +155,103 @@ async def get_phone_pool_status(request: Request):
     return await get_pool_stats()
 
 
+@router.post("/api/assign-number/{client_id}")
+async def assign_number(client_id: str, request: Request):
+    """
+    Manually assign a Vobiz phone number to a client with pending_number status.
+
+    Body: { "phone_number": "+919876543210" }
+
+    Steps:
+    1. Insert number into pool if not already there
+    2. Assign to client (update pool + clients.vobiz_number)
+    3. Update Bolna agent with the number
+    4. Set setup_status = 'ready'
+    5. Email the client
+    """
+    _require_admin(request)
+    body = await request.json()
+    phone_number = (body.get("phone_number") or "").strip()
+    if not phone_number:
+        raise HTTPException(400, "Provide 'phone_number'")
+
+    db = get_supabase()
+    client_row = db.table("clients").select(
+        "id, business_name, agent_name, agent_email, bolna_agent_id, setup_status"
+    ).eq("id", client_id).single().execute()
+    if not client_row.data:
+        raise HTTPException(404, "Client not found")
+
+    info = client_row.data
+
+    # 1. Insert into pool if missing
+    existing = db.table("phone_number_pool").select("id").eq("phone_number", phone_number).execute()
+    if not existing.data:
+        db.table("phone_number_pool").insert({"phone_number": phone_number}).execute()
+
+    # 2. Assign pool row + stamp client
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat()
+    db.table("phone_number_pool").update(
+        {"client_id": client_id, "assigned_at": now}
+    ).eq("phone_number", phone_number).execute()
+    db.table("clients").update({"vobiz_number": phone_number}).eq("id", client_id).execute()
+
+    # 3. Update Bolna agent with the number
+    bolna_updated = False
+    agent_id = info.get("bolna_agent_id")
+    if agent_id:
+        try:
+            from app.services.onboarding_service import update_voice_agent
+            # Re-fetch client now that vobiz_number is set
+            await update_voice_agent(client_id)
+            bolna_updated = True
+        except Exception as e:
+            logger.warning("Bolna update failed for %s during assign-number: %s", client_id, e)
+
+    # 4. Set status ready
+    db.table("clients").update({"setup_status": "ready"}).eq("id", client_id).execute()
+
+    # 5. Email the client
+    agent_email = info.get("agent_email", "")
+    if agent_email and settings.SMTP_EMAIL:
+        try:
+            import asyncio
+            from app.services.alert_service import _send_email
+            await asyncio.to_thread(
+                _send_email,
+                to=agent_email,
+                subject="Your AI Receptionist is Live!",
+                body=f"""
+<div style="font-family:Arial,sans-serif;max-width:600px;">
+  <h2 style="color:#FF5722;">Your AI Receptionist is Live!</h2>
+  <p>Great news! Your dedicated phone number has been assigned.</p>
+  <p style="font-size:24px;font-weight:bold;color:#1e293b;margin:16px 0;">{phone_number}</p>
+  <p>Put this number on your property listings, visiting cards, and website.<br>
+     When buyers call, your AI assistant <strong>{info.get('agent_name','')}</strong> will handle them 24/7.</p>
+  <p style="margin-top:24px;color:#64748b;">Log in to your dashboard to see leads and calls:<br>
+     <a href="{settings.BASE_URL}/dashboard">{settings.BASE_URL}/dashboard</a></p>
+</div>""",
+            )
+            logger.info("Client number-live email sent to %s", agent_email)
+        except Exception as e:
+            logger.warning("Client number-live email failed: %s", e)
+
+    return {
+        "status": "assigned",
+        "phone_number": phone_number,
+        "bolna_updated": bolna_updated,
+        "client": info.get("business_name"),
+    }
+
+
 @router.post("/api/retry-provision/{client_id}")
 async def retry_provision(client_id: str, request: Request):
     """Retry phone assignment for a stuck client."""
     _require_admin(request)
     db = get_supabase()
     client = db.table("clients").select(
-        "id, setup_status, exotel_number, business_name"
+        "id, setup_status, vobiz_number, business_name"
     ).eq("id", client_id).single().execute()
     if not client.data:
         raise HTTPException(status_code=404, detail="Client not found")
@@ -169,12 +259,12 @@ async def retry_provision(client_id: str, request: Request):
     info = client.data
     result = {"client_id": client_id, "business": info.get("business_name")}
 
-    if not info.get("exotel_number"):
+    if not info.get("vobiz_number"):
         from app.services.phone_service import assign_phone_number
         phone = await assign_phone_number(client_id)
         result["phone_assigned"] = phone
     else:
-        result["phone_assigned"] = info["exotel_number"]
+        result["phone_assigned"] = info["vobiz_number"]
         result["phone_note"] = "already had number"
 
     db.table("clients").update({"setup_status": "ready"}).eq("id", client_id).execute()
@@ -253,7 +343,7 @@ async def test_call(request: Request):
     # Look up the client's Bolna agent
     db = get_supabase()
     result = db.table("clients").select(
-        "id, business_name, bolna_agent_id, exotel_number, setup_status"
+        "id, business_name, bolna_agent_id, vobiz_number, setup_status"
     ).eq("id", client_id).single().execute()
 
     if not result.data:
@@ -528,11 +618,13 @@ function renderClients(list){
     <td style="font-size:12px">${c.agent_email||'-'}</td>
     <td>${planBadge(c.plan_type||'pro')}</td>
     <td>${statusBadge(c.subscription_status)}</td>
-    <td class="phone">${c.exotel_number||'<span style="color:#94a3b8">none</span>'}</td>
+    <td class="phone">${c.vobiz_number||'<span style="color:#94a3b8">none</span>'}</td>
     <td>${c.setup_status||'-'}</td>
     <td style="font-size:12px">${fmtDate(c.created_at)}</td>
     <td style="font-size:12px">${c.subscription_status==='trial'?daysLeft(c.trial_ends_at):'-'}</td>
-    <td>${c.setup_status!=='ready'?'<button class="btn-retry" onclick="retryProvision(\''+c.id+'\')">Retry</button>':''}</td>
+    <td>${c.setup_status==='pending_number'
+      ? '<div style="display:flex;gap:6px;align-items:center;"><input id="num-'+c.id+'" placeholder="+91..." style="padding:4px 8px;border:1.5px solid #d1d5db;border-radius:6px;font-size:12px;width:130px;"><button class="btn-retry" onclick="assignNumber(\''+c.id+'\')">Assign</button></div>'
+      : c.setup_status!=='ready'?'<button class="btn-retry" onclick="retryProvision(\''+c.id+'\')">Retry</button>':''}</td>
   </tr>`).join('');
 }
 
@@ -551,6 +643,23 @@ async function retryProvision(id){
   const r=await fetch('/admin/api/retry-provision/'+id,{method:'POST',headers:{'Authorization':'Bearer '+TOKEN}});
   const d=await r.json();
   alert(d.phone_assigned?'Phone assigned: '+d.phone_assigned:'Done: '+JSON.stringify(d));
+  loadAll();
+}
+
+async function assignNumber(id){
+  const input=document.getElementById('num-'+id);
+  const phone=(input?input.value:'').trim();
+  if(!phone){alert('Enter a phone number first (e.g. +919876543210)');return;}
+  if(!confirm('Assign '+phone+' to this client and email them?')) return;
+  const r=await fetch('/admin/api/assign-number/'+id,{
+    method:'POST',
+    headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},
+    body:JSON.stringify({phone_number:phone})
+  });
+  const d=await r.json();
+  alert(d.status==='assigned'
+    ?'Assigned '+d.phone_number+'! Bolna updated: '+d.bolna_updated+'. Client emailed.'
+    :'Error: '+JSON.stringify(d));
   loadAll();
 }
 

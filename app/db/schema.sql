@@ -12,7 +12,7 @@ CREATE TABLE clients (
     agent_name TEXT NOT NULL,
     agent_email TEXT NOT NULL,
     agent_phone TEXT NOT NULL,
-    exotel_number TEXT,
+    vobiz_number TEXT,
     bolna_agent_id TEXT,
     vapi_assistant_id TEXT,
     knowledge_base TEXT,
@@ -159,6 +159,11 @@ ALTER TABLE clients ADD COLUMN IF NOT EXISTS razorpay_subscription_id TEXT;
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS razorpay_customer_id TEXT;
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS google_calendar_token JSONB;
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS setup_status TEXT DEFAULT 'provisioning';
+
+-- =========================
+-- MIGRATION: Rename exotel_number to vobiz_number
+-- =========================
+-- ALTER TABLE clients RENAME COLUMN exotel_number TO vobiz_number;
 
 -- =========================
 -- MIGRATION: Pricing tiers

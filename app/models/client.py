@@ -9,7 +9,7 @@ class ClientConfig(BaseModel):
     agent_name: str
     agent_email: str
     agent_phone: str
-    exotel_number: Optional[str] = None
+    vobiz_number: Optional[str] = None
     bolna_agent_id: Optional[str] = None
     vapi_assistant_id: Optional[str] = None
     knowledge_base: Optional[str] = None
