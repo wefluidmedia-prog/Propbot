@@ -197,17 +197,18 @@ async def assign_number(client_id: str, request: Request):
     ).eq("phone_number", phone_number).execute()
     db.table("clients").update({"vobiz_number": phone_number}).eq("id", client_id).execute()
 
-    # 3. Update Bolna agent with the number
+    # 3. Create or update Bolna agent with the phone number.
+    # vobiz_number is now stamped in DB, so update_voice_agent() will pick it up.
+    # If no agent exists yet (bolna_agent_id is null), update_voice_agent() calls
+    # provision_voice_agent() to create one first.
     bolna_updated = False
-    agent_id = info.get("bolna_agent_id")
-    if agent_id:
-        try:
-            from app.services.onboarding_service import update_voice_agent
-            # Re-fetch client now that vobiz_number is set
-            await update_voice_agent(client_id)
-            bolna_updated = True
-        except Exception as e:
-            logger.warning("Bolna update failed for %s during assign-number: %s", client_id, e)
+    try:
+        from app.services.onboarding_service import update_voice_agent
+        await update_voice_agent(client_id)
+        bolna_updated = True
+        logger.info("Bolna agent created/updated for client %s with number %s", client_id, phone_number)
+    except Exception as e:
+        logger.error("Bolna create/update failed for client %s: %s", client_id, e, exc_info=True)
 
     # 4. Set status ready
     db.table("clients").update({"setup_status": "ready"}).eq("id", client_id).execute()
@@ -519,7 +520,7 @@ tr:hover td{background:#f8fafc;}
               <th>Setup</th>
               <th>Signed Up</th>
               <th>Trial Ends</th>
-              <th></th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody id="clients-body"></tbody>
@@ -608,6 +609,23 @@ function fmtDate(d){
   return new Date(d).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
 }
 
+function actionCell(c){
+  if(c.setup_status==='pending_number'){
+    return '<div style="display:flex;gap:6px;align-items:center;">'
+      +'<input class="num-input" data-id="'+c.id+'" placeholder="+91XXXXXXXXXX"'
+      +' style="padding:5px 8px;border:1.5px solid #d1d5db;border-radius:6px;font-size:12px;width:140px;">'
+      +'<button class="btn-retry btn-assign" data-id="'+c.id+'">Assign</button>'
+      +'</div>';
+  }
+  if(c.setup_status==='ready' && c.vobiz_number){
+    return '<span style="color:#059669;font-weight:600;font-size:12px;">&#10003; Ready</span>';
+  }
+  if(c.setup_status==='failed'||c.setup_status==='provisioning'){
+    return '<button class="btn-retry btn-reprovision" data-id="'+c.id+'">Retry</button>';
+  }
+  return '<span style="color:#94a3b8;font-size:12px;">'+( c.setup_status||'-')+'</span>';
+}
+
 function renderClients(list){
   const body=document.getElementById('clients-body');
   const empty=document.getElementById('empty');
@@ -622,10 +640,15 @@ function renderClients(list){
     <td>${c.setup_status||'-'}</td>
     <td style="font-size:12px">${fmtDate(c.created_at)}</td>
     <td style="font-size:12px">${c.subscription_status==='trial'?daysLeft(c.trial_ends_at):'-'}</td>
-    <td>${c.setup_status==='pending_number'
-      ? '<div style="display:flex;gap:6px;align-items:center;"><input id="num-'+c.id+'" placeholder="+91..." style="padding:4px 8px;border:1.5px solid #d1d5db;border-radius:6px;font-size:12px;width:130px;"><button class="btn-retry" onclick="assignNumber(\''+c.id+'\')">Assign</button></div>'
-      : c.setup_status!=='ready'?'<button class="btn-retry" onclick="retryProvision(\''+c.id+'\')">Retry</button>':''}</td>
+    <td>${actionCell(c)}</td>
   </tr>`).join('');
+  // Attach event listeners after DOM is updated (avoids onclick escaping issues)
+  document.querySelectorAll('.btn-assign').forEach(btn=>{
+    btn.addEventListener('click',function(){assignNumber(this.dataset.id);});
+  });
+  document.querySelectorAll('.btn-reprovision').forEach(btn=>{
+    btn.addEventListener('click',function(){retryProvision(this.dataset.id);});
+  });
 }
 
 function filterClients(){
@@ -638,18 +661,34 @@ function filterClients(){
   ));
 }
 
+function showToast(msg,ok){
+  let t=document.getElementById('toast');
+  if(!t){
+    t=document.createElement('div');
+    t.id='toast';
+    t.style.cssText='position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:600;z-index:9999;transition:opacity .3s;';
+    document.body.appendChild(t);
+  }
+  t.textContent=msg;
+  t.style.background=ok?'#065f46':'#7f1d1d';
+  t.style.color='#fff';
+  t.style.opacity='1';
+  clearTimeout(t._hide);
+  t._hide=setTimeout(()=>{t.style.opacity='0';},3000);
+}
+
 async function retryProvision(id){
   if(!confirm('Retry phone provisioning for this client?')) return;
   const r=await fetch('/admin/api/retry-provision/'+id,{method:'POST',headers:{'Authorization':'Bearer '+TOKEN}});
   const d=await r.json();
-  alert(d.phone_assigned?'Phone assigned: '+d.phone_assigned:'Done: '+JSON.stringify(d));
+  showToast(d.phone_assigned?'Phone assigned: '+d.phone_assigned:'Done (no phone available yet)',!!d.phone_assigned);
   loadAll();
 }
 
 async function assignNumber(id){
-  const input=document.getElementById('num-'+id);
+  const input=document.querySelector('.num-input[data-id="'+id+'"]');
   const phone=(input?input.value:'').trim();
-  if(!phone){alert('Enter a phone number first (e.g. +919876543210)');return;}
+  if(!phone){showToast('Enter a phone number first (e.g. +919876543210)',false);return;}
   if(!confirm('Assign '+phone+' to this client and email them?')) return;
   const r=await fetch('/admin/api/assign-number/'+id,{
     method:'POST',
@@ -657,10 +696,12 @@ async function assignNumber(id){
     body:JSON.stringify({phone_number:phone})
   });
   const d=await r.json();
-  alert(d.status==='assigned'
-    ?'Assigned '+d.phone_number+'! Bolna updated: '+d.bolna_updated+'. Client emailed.'
-    :'Error: '+JSON.stringify(d));
-  loadAll();
+  if(d.status==='assigned'){
+    showToast('Assigned '+d.phone_number+' | Bolna: '+(d.bolna_updated?'agent ready':'FAILED — check server logs')+' | Client emailed',d.bolna_updated);
+    loadAll();
+  } else {
+    showToast('Error: '+(d.detail||JSON.stringify(d)),false);
+  }
 }
 
 // Auto-login from localStorage
