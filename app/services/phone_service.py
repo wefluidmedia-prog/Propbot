@@ -2,7 +2,7 @@
 Phone number pool service — manages pre-purchased Vobiz numbers assigned to clients.
 
 Numbers live in the `phone_number_pool` table. On signup a free number is claimed
-and written to `clients.exotel_number`; on client deletion it is released back.
+and written to `clients.vobiz_number`; on client deletion it is released back.
 """
 
 import logging
@@ -53,7 +53,7 @@ async def assign_phone_number(client_id: str) -> str | None:
 
         if update_result.data:
             # Successfully claimed — now stamp the client record
-            db.table("clients").update({"exotel_number": phone_number}).eq(
+            db.table("clients").update({"vobiz_number": phone_number}).eq(
                 "id", client_id
             ).execute()
             logger.info(
@@ -76,7 +76,7 @@ async def assign_phone_number(client_id: str) -> str | None:
 async def release_phone_number(client_id: str) -> None:
     """
     Return the phone number held by client_id back to the free pool
-    and clear `clients.exotel_number`.
+    and clear `clients.vobiz_number`.
     """
     db = get_supabase()
 
@@ -98,7 +98,7 @@ async def release_phone_number(client_id: str) -> None:
         {"client_id": None, "assigned_at": None}
     ).eq("id", pool_id).execute()
 
-    db.table("clients").update({"exotel_number": None}).eq(
+    db.table("clients").update({"vobiz_number": None}).eq(
         "id", client_id
     ).execute()
 

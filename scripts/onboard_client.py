@@ -54,7 +54,7 @@ async def onboard(args):
         "agent_name": args.agent_name,
         "agent_email": args.agent_email,
         "agent_phone": args.agent_phone,
-        "exotel_number": args.phone_number,
+        "vobiz_number": args.phone_number,
         "knowledge_base": kb_content,
         "assistant_persona_name": args.persona_name,
     }

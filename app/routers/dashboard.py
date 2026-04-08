@@ -169,7 +169,7 @@ async def get_profile(client_id: str = Depends(_get_client_id)):
     result = db.table("clients").select(
         "id, business_name, agent_name, agent_email, agent_phone, city, specialty, "
         "assistant_persona_name, voice_gender, voice_id, subscription_status, plan_type, "
-        "trial_ends_at, exotel_number, setup_status, bolna_agent_id, created_at, first_message, "
+        "trial_ends_at, vobiz_number, setup_status, bolna_agent_id, created_at, first_message, "
         "knowledge_base, language_style"
     ).eq("id", client_id).single().execute()
     return result.data
@@ -808,16 +808,19 @@ function switchTab(tab){
 
 function phoneBanner(){
   if(!profile.setup_status) return '';
-  if(profile.setup_status==='ready' && profile.exotel_number)
+  if(profile.setup_status==='ready' && profile.vobiz_number)
     return '<div class="phone-banner ready"><span>📞</span><div><div>Your AI Receptionist Number</div>' +
-      '<div class="phone-number">'+esc(profile.exotel_number)+'</div></div>' +
+      '<div class="phone-number">'+esc(profile.vobiz_number)+'</div></div>' +
       '<div style="margin-left:auto;font-size:13px;color:#059669;">Share this with your clients!</div></div>';
+  if(profile.setup_status==='pending_number')
+    return '<div class="phone-banner provisioning"><span>🔄</span>' +
+      '<span>Your AI assistant is ready! We\'re assigning your dedicated phone number — you\'ll receive an email within a few hours. No action needed.</span></div>';
   if(profile.setup_status==='provisioning')
     return '<div class="phone-banner provisioning"><span>⏳</span>' +
-      '<span>Setting up your phone number... Refresh in a moment.</span></div>';
+      '<span>Setting up your AI assistant... Refresh in a moment.</span></div>';
   if(profile.setup_status==='failed')
     return '<div class="phone-banner failed"><span>⚠️</span>' +
-      '<span>Phone number setup pending. Please contact support.</span></div>';
+      '<span>Your AI assistant is being set up. We\'ll email you when it\'s ready.</span></div>';
   return '';
 }
 
@@ -1123,8 +1126,11 @@ function saveListings(){
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({knowledge_base: kb})
   }).then(function(r){ return r.json(); }).then(function(){
+    // Also sync to Bolna so the AI knows about new listings immediately
+    return fetch('/dashboard/api/assistant/sync', {method:'POST'});
+  }).then(function(){
     btn.disabled = false; btn.textContent = 'Save Listings';
-    status.textContent = '✓ Saved successfully'; status.style.color='#10B981';
+    status.textContent = '✓ Saved & synced to AI'; status.style.color='#10B981';
     setTimeout(function(){ status.textContent=''; }, 3000);
   }).catch(function(){
     btn.disabled = false; btn.textContent = 'Save Listings';

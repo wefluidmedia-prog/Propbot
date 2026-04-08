@@ -156,7 +156,7 @@ async def handle_razorpay_webhook(payload: dict, signature: str) -> None:
     db = get_supabase()
     result = (
         db.table("clients")
-        .select("id, agent_email, agent_name, exotel_number")
+        .select("id, agent_email, agent_name, vobiz_number")
         .eq("razorpay_subscription_id", sub_id)
         .execute()
     )
@@ -178,7 +178,7 @@ async def handle_razorpay_webhook(payload: dict, signature: str) -> None:
         logger.info("Subscription activated for client %s", client_id)
 
         # Assign a phone number if the client doesn't have one yet
-        if not client.get("exotel_number"):
+        if not client.get("vobiz_number"):
             from app.services.phone_service import assign_phone_number  # noqa: PLC0415
 
             await assign_phone_number(client_id)
