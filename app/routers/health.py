@@ -731,7 +731,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
     <div class="fc"><div class="fic fi-b">&#127919;</div><h3>Auto Lead Capture</h3><p>Name, phone, budget, area preference &mdash; all captured the moment they call. Instant email alert. Nothing falls through the cracks.</p></div>
     <div class="fc"><div class="fic fi-p">&#128197;</div><h3>Google Calendar Booking</h3><p>PropBot books site visits live on the call, straight into your Google Calendar. Confirms with the caller on the spot. Zero back-and-forth.</p></div>
     <div class="fc"><div class="fic fi-pk">&#128200;</div><h3>Dashboard &amp; Analytics</h3><p>All leads, call recordings, and transcripts in one clean dashboard. Know exactly what every buyer asked, their budget, and timeline.</p></div>
-    <div class="fc"><div class="fic fi-t">&#9889;</div><h3>Instant Alerts</h3><p>Get notified the moment a qualified lead comes in &mdash; by email and SMS. Hot buyers never wait. You never miss a deal again.</p></div>
+    <div class="fc"><div class="fic fi-t">&#9889;</div><h3>Instant Alerts</h3><p>Get notified the moment a qualified lead comes in &mdash; by email. Hot buyers never wait. You never miss a deal again.</p></div>
   </div>
 </div>
 </section>
@@ -802,7 +802,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
       <ul class="pfeats">
         <li><span class="ck">&#10003;</span> AI voice receptionist (your choice)</li>
         <li><span class="ck">&#10003;</span> Hindi + Hinglish conversations</li>
-        <li><span class="ck">&#10003;</span> Lead alerts &mdash; email + SMS</li>
+        <li><span class="ck">&#10003;</span> Lead alerts to your email</li>
         <li><span class="ck">&#10003;</span> Full lead &amp; call dashboard</li>
         <li><span class="ck">&#10003;</span> <strong>Unlimited calls</strong></li>
         <li><span class="ck">&#10003;</span> Chat widget for your website</li>

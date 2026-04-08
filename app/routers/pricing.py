@@ -156,7 +156,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
     <ul class="feats">
       <li><span class="ck">&#10003;</span> AI receptionist answers all calls</li>
       <li><span class="ck">&#10003;</span> Hindi + Hinglish conversations</li>
-      <li><span class="ck">&#10003;</span> Lead alerts &mdash; email + SMS</li>
+      <li><span class="ck">&#10003;</span> Lead alerts to your email</li>
       <li><span class="ck">&#10003;</span> Full lead &amp; call dashboard</li>
       <li><span class="ck">&#10003;</span> <strong>Unlimited calls</strong></li>
       <li><span class="ck">&#10003;</span> Chat widget for your website</li>
