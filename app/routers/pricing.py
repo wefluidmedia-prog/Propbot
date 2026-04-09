@@ -72,6 +72,25 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 .compare-note p{color:#6B7280;font-size:14px;}
 .compare-note a{color:#FF5722;text-decoration:underline;}
 
+/* COMING SOON BADGE */
+.cs-tag{display:inline-block;font-size:10px;font-weight:700;color:#7C3AED;background:#EDE9FE;border:1px solid #C4B5FD;border-radius:20px;padding:1px 8px;margin-left:6px;letter-spacing:.3px;vertical-align:middle;}
+.feats li.soon{color:#6B7280;}
+.feats li.soon .cs-tag{opacity:.85;}
+
+/* OUTBOUND TEASER BANNER */
+.ob-banner{max-width:820px;margin:0 auto 56px;padding:0 24px;}
+.ob-inner{background:linear-gradient(135deg,#1E1B4B 0%,#312E81 100%);border-radius:20px;padding:36px 40px;display:flex;align-items:center;gap:32px;flex-wrap:wrap;}
+.ob-icon{font-size:48px;flex-shrink:0;}
+.ob-body{flex:1;min-width:220px;}
+.ob-label{font-size:11px;font-weight:700;color:#A5B4FC;letter-spacing:1.8px;text-transform:uppercase;margin-bottom:8px;}
+.ob-body h3{font-size:22px;font-weight:800;color:#fff;letter-spacing:-.4px;margin-bottom:8px;line-height:1.2;}
+.ob-body p{font-size:14px;color:#C7D2FE;line-height:1.65;}
+.ob-cta{flex-shrink:0;}
+.ob-btn{display:inline-block;padding:12px 24px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.25);color:#fff;border-radius:12px;font-size:14px;font-weight:600;text-decoration:none;cursor:pointer;transition:all .2s;font-family:inherit;}
+.ob-btn:hover{background:rgba(255,255,255,.2);}
+.ob-btn input{display:none;}
+@media(max-width:600px){.ob-inner{padding:28px 24px;gap:20px;}.ob-icon{font-size:36px;}}
+
 /* FAQ */
 .faq{max-width:680px;margin:0 auto;padding:0 24px 72px;}
 .faq h2{font-size:28px;font-weight:800;letter-spacing:-0.5px;text-align:center;margin-bottom:32px;}
@@ -120,7 +139,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 <!-- HEADER -->
 <div class="header">
   <div class="sec-label">Pricing</div>
-  <h1>Simple, honest pricing</h1>
+  <h1>One flat price. Unlimited leads answered.</h1>
   <p>No hidden fees. No per-call charges. One flat monthly price to never miss a lead again.</p>
   <span class="trial-badge">&#10003; 14-day free trial &mdash; no credit card needed</span>
 </div>
@@ -142,6 +161,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
       <li><span class="ck">&#10003;</span> Up to 50 calls / month</li>
       <li class="dm"><span class="dash">&mdash;</span> Chat widget for website</li>
       <li class="dm"><span class="dash">&mdash;</span> Priority support</li>
+      <li class="soon"><span class="dash" style="color:#C4B5FD">&#9670;</span> Outbound follow-up calls <span class="cs-tag">Coming Soon</span></li>
     </ul>
     <a href="/signup?plan=starter" class="btn btn-ol">Start Free Trial</a>
   </div>
@@ -161,6 +181,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
       <li><span class="ck">&#10003;</span> <strong>Unlimited calls</strong></li>
       <li><span class="ck">&#10003;</span> Chat widget for your website</li>
       <li><span class="ck">&#10003;</span> Priority onboarding support</li>
+      <li class="soon"><span class="dash" style="color:#C4B5FD">&#9670;</span> Outbound follow-up calls <span class="cs-tag">Coming Soon</span></li>
     </ul>
     <a href="/signup?plan=pro" class="btn btn-fill">Start Free Trial &rarr;</a>
   </div>
@@ -169,6 +190,30 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 
 <div class="compare-note">
   <p>Not sure? <a href="/signup?plan=pro">Start with Pro free for 14 days</a> &mdash; downgrade anytime, no questions asked.</p>
+</div>
+
+<!-- OUTBOUND COMING SOON BANNER -->
+<div class="ob-banner">
+  <div class="ob-inner">
+    <div class="ob-icon">&#128222;</div>
+    <div class="ob-body">
+      <div class="ob-label">Coming Soon</div>
+      <h3>Outbound Follow-Up Calls &mdash; PropBot Calls Your Leads For You</h3>
+      <p>Drop in a lead&rsquo;s number and PropBot calls them back automatically &mdash; within 60 seconds of the inquiry, or on a schedule you set. First to follow up wins the deal. <strong style="color:#A5B4FC;">Join the waitlist to get early access.</strong></p>
+    </div>
+    <div class="ob-cta">
+      <button class="ob-btn" onclick="document.getElementById('ob-email-wrap').style.display='block';this.style.display='none';">Get Early Access &rarr;</button>
+      <div id="ob-email-wrap" style="display:none;">
+        <input id="ob-email" type="email" placeholder="your@email.com" style="width:100%;padding:10px 14px;border-radius:8px;border:none;font-size:14px;margin-bottom:8px;outline:none;font-family:inherit;">
+        <button onclick="
+          var em=document.getElementById('ob-email').value;
+          if(!em||!em.includes('@')){return;}
+          fetch('/contact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'Outbound Waitlist',phone:'waitlist',email:em,message:'Outbound waitlist signup from pricing page'})});
+          document.getElementById('ob-email-wrap').innerHTML='<p style=\'color:#A5B4FC;font-size:14px;font-weight:600;\'>&#10003; You&rsquo;re on the list! We&rsquo;ll email you first.</p>';
+        " style="width:100%;padding:10px;background:#7C3AED;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;">Notify Me</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- FAQ -->

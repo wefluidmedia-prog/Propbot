@@ -120,6 +120,8 @@ LANDING_HTML = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PropBot — AI Receptionist for Indian Real Estate Agents</title>
 <meta name="description" content="PropBot answers every call in Hindi & English 24/7, captures leads, books site visits. From ₹2,499/month. 14-day free trial, no credit card.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23FF5722'/><path d='M16 5 L27 15 L23 15 L23 27 L9 27 L9 15 L5 15 Z' fill='white'/><rect x='12.5' y='19' width='7' height='8' rx='1.5' fill='%23FF5722'/><circle cx='25' cy='8' r='1.8' fill='white' opacity='0.9'/><path d='M26.5 5.5 Q29.5 8 26.5 10.5' stroke='white' stroke-width='1.4' fill='none' stroke-linecap='round' opacity='0.8'/></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23FF5722'/><path d='M16 5 L27 15 L23 15 L23 27 L9 27 L9 15 L5 15 Z' fill='white'/><rect x='12.5' y='19' width='7' height='8' rx='1.5' fill='%23FF5722'/></svg>">
 <!-- __GA__ -->
 <!-- __OG__ -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -155,15 +157,16 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
 .nav{position:sticky;top:0;z-index:1000;background:rgba(250,250,248,0.88);backdrop-filter:blur(16px);border-bottom:1px solid transparent;transition:border-color .3s;}
 .nav.scrolled{border-color:var(--border);}
 .nav-inner{display:flex;justify-content:space-between;align-items:center;padding:14px 40px;max-width:1160px;margin:0 auto;}
-.nav-logo{font-size:21px;font-weight:800;color:var(--text);text-decoration:none;letter-spacing:-0.5px;}
+.nav-logo{font-size:21px;font-weight:800;color:var(--text);text-decoration:none;letter-spacing:-0.5px;display:flex;align-items:center;gap:8px;}
 .nav-logo span{color:var(--orange);}
+.nav-logo-icon{width:32px;height:32px;flex-shrink:0;}
 .nav-links{display:flex;gap:4px;align-items:center;}
 .nav-links a{text-decoration:none;font-size:14px;font-weight:500;color:var(--muted);padding:7px 12px;border-radius:10px;transition:all .15s;}
 .nav-links a:hover{color:var(--text);background:rgba(0,0,0,0.04);}
 .btn-nav{background:var(--orange)!important;color:#fff!important;padding:9px 20px!important;border-radius:10px!important;font-weight:700!important;}
 .btn-nav:hover{background:var(--orange-dark)!important;box-shadow:0 4px 12px rgba(255,87,34,.3)!important;}
-.nav-toggle{display:none;background:none;border:none;cursor:pointer;padding:4px;flex-direction:column;gap:5px;}
-.nav-toggle span{display:block;width:22px;height:2px;background:var(--text);border-radius:2px;transition:all .25s;}
+.nav-toggle{display:none;background:none;border:none;cursor:pointer;padding:10px;flex-direction:column;gap:5px;margin-right:-10px;min-width:44px;min-height:44px;align-items:center;justify-content:center;}
+.nav-toggle span{display:block;width:24px;height:2.5px;background:var(--text);border-radius:2px;transition:all .25s;}
 
 /* HERO */
 .hero{padding:72px 40px 80px;background:linear-gradient(150deg,#FFFAF7 0%,#FFF5EF 45%,#F0F4FF 100%);overflow:hidden;}
@@ -384,8 +387,9 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
 /* FOOTER */
 .footer{background:var(--dark);padding:52px 40px 32px;}
 .footer-inner{max-width:1160px;margin:0 auto;display:flex;justify-content:space-between;flex-wrap:wrap;gap:40px;margin-bottom:40px;}
-.footer-logo{font-size:20px;font-weight:800;color:#fff;text-decoration:none;letter-spacing:-.5px;}
+.footer-logo{font-size:20px;font-weight:800;color:#fff;text-decoration:none;letter-spacing:-.5px;display:inline-flex;align-items:center;gap:8px;}
 .footer-logo span{color:var(--orange);}
+.footer-logo-icon{width:28px;height:28px;flex-shrink:0;}
 .footer-tag{font-size:13px;color:#8B949E;margin-top:6px;}
 .fcol h4{color:#E6EDF3;font-size:13px;font-weight:700;margin-bottom:14px;letter-spacing:.3px;}
 .fcol a{display:block;color:#8B949E;text-decoration:none;font-size:13px;padding:4px 0;transition:color .15s;}
@@ -395,10 +399,11 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
 
 /* RESPONSIVE */
 @media(max-width:900px){
-  .nav-inner{padding:14px 20px;}
-  .nav-links{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(250,250,248,.97);backdrop-filter:blur(20px);flex-direction:column;justify-content:center;align-items:center;gap:8px;z-index:999;}
+  .nav-inner{padding:12px 20px;}
+  .nav-links{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:#FAFAF8;flex-direction:column;justify-content:center;align-items:center;gap:4px;z-index:999;padding:80px 24px 40px;padding-top:max(80px, calc(60px + env(safe-area-inset-top)));}
   .nav-links.open{display:flex;}
-  .nav-links a{font-size:18px;padding:12px 24px;}
+  .nav-links a{font-size:20px;padding:14px 32px;border-radius:12px;width:100%;max-width:280px;text-align:center;}
+  .nav-links .btn-nav{margin-top:12px;width:100%;max-width:280px;text-align:center;}
   .nav-toggle{display:flex;z-index:1001;position:relative;}
 
   /* Hero */
@@ -570,7 +575,16 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
 <!-- NAV -->
 <nav class="nav" id="nav">
 <div class="nav-inner">
-  <a class="nav-logo" href="/"><span>Prop</span>Bot</a>
+  <a class="nav-logo" href="/">
+    <svg class="nav-logo-icon" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <rect width="32" height="32" rx="8" fill="#FF5722"/>
+      <path d="M16 5 L27 15 L23 15 L23 27 L9 27 L9 15 L5 15 Z" fill="white"/>
+      <rect x="12.5" y="19" width="7" height="8" rx="1.5" fill="#FF5722"/>
+      <circle cx="24.5" cy="8" r="1.8" fill="white" opacity="0.9"/>
+      <path d="M26.2 5.8 Q29 8 26.2 10.2" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.85"/>
+    </svg>
+    <span>Prop</span>Bot
+  </a>
   <button class="nav-toggle" id="ntog" aria-label="Menu">
     <span></span><span></span><span></span>
   </button>
@@ -919,7 +933,16 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
 <footer class="footer">
 <div class="footer-inner">
   <div>
-    <a class="footer-logo" href="/"><span>Prop</span>Bot</a>
+    <a class="footer-logo" href="/">
+      <svg class="footer-logo-icon" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+        <rect width="32" height="32" rx="8" fill="#FF5722"/>
+        <path d="M16 5 L27 15 L23 15 L23 27 L9 27 L9 15 L5 15 Z" fill="white"/>
+        <rect x="12.5" y="19" width="7" height="8" rx="1.5" fill="#FF5722"/>
+        <circle cx="24.5" cy="8" r="1.8" fill="white" opacity="0.9"/>
+        <path d="M26.2 5.8 Q29 8 26.2 10.2" stroke="white" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.85"/>
+      </svg>
+      <span>Prop</span>Bot
+    </a>
     <div class="footer-tag">AI Receptionist for Indian Real Estate</div>
   </div>
   <div class="fcol">
@@ -951,14 +974,19 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
 <script>
 window.addEventListener('scroll',function(){document.getElementById('nav').classList.toggle('scrolled',window.scrollY>10);});
 var tog=document.getElementById('ntog'),lnk=document.getElementById('nlinks');
+function closeNav(){lnk.classList.remove('open');document.body.style.overflow='';tog.querySelectorAll('span').forEach(function(s){s.style.transform='';s.style.opacity='1';});}
+function openNav(){lnk.classList.add('open');document.body.style.overflow='hidden';}
 tog.addEventListener('click',function(){
-  var open=lnk.classList.toggle('open');
+  var isOpen=lnk.classList.contains('open');
+  if(isOpen){closeNav();}else{openNav();}
   var s=tog.querySelectorAll('span');
-  s[0].style.transform=open?'translateY(7px) rotate(45deg)':'';
-  s[1].style.opacity=open?'0':'1';
-  s[2].style.transform=open?'translateY(-7px) rotate(-45deg)':'';
+  var willBeOpen=lnk.classList.contains('open');
+  s[0].style.transform=willBeOpen?'translateY(7px) rotate(45deg)':'';
+  s[1].style.opacity=willBeOpen?'0':'1';
+  s[2].style.transform=willBeOpen?'translateY(-7px) rotate(-45deg)':'';
 });
-document.querySelectorAll('.nav-links a').forEach(function(a){a.addEventListener('click',function(){lnk.classList.remove('open');tog.querySelectorAll('span').forEach(function(s){s.style.transform='';s.style.opacity='1';});});});
+document.querySelectorAll('.nav-links a').forEach(function(a){a.addEventListener('click',closeNav);});
+lnk.addEventListener('click',function(e){if(e.target===lnk){closeNav();}});
 </script>
 <!-- __WHATSAPP_FLOAT__ -->
 

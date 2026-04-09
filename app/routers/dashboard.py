@@ -358,14 +358,18 @@ async def get_usage(client_id: str = Depends(_get_client_id)):
     voice_leads = sum(1 for l in leads_this_month if l.get("source") == "voice")
     chat_leads = sum(1 for l in leads_this_month if l.get("source") in ("chat", "callback"))
 
+    client_row = (db.table("clients").select("plan_type, calls_limit").eq("id", client_id).single().execute().data or {})
+    plan_type = client_row.get("plan_type", "starter")
+    calls_limit = client_row.get("calls_limit")
+
     return {
         "month": now.strftime("%B %Y"),
         "calls_this_month": len(month_calls),
         "total_calls": len(all_calls),
         "minutes_this_month": minutes_month,
         "total_minutes": round(total_seconds_all / 60, 1),
-        "estimated_cost_inr": estimated_cost_inr,
-        "subscription_fee_inr": 2499 if (db.table("clients").select("plan_type").eq("id", client_id).single().execute().data or {}).get("plan_type") == "starter" else 4999,
+        "plan_type": plan_type,
+        "calls_limit": calls_limit,
         "voice_leads_month": voice_leads,
         "chat_leads_month": chat_leads,
     }
@@ -1004,23 +1008,22 @@ function renderCallbacks(){
 function renderUsage(){
   api('/dashboard/api/usage').then(function(u){
     var c = document.getElementById('content');
+    var planNote = u.calls_limit
+      ? '📞 ' + u.calls_limit + ' calls/month included on your plan. <a href="/pricing" target="_blank">Upgrade to Pro</a> for unlimited calls.'
+      : '✅ Unlimited calls included on your Pro plan.';
     c.innerHTML =
       '<div class="usage-grid">' +
         usageCard('Calls This Month', u.calls_this_month, 'total calls', '') +
         usageCard('Minutes Used', u.minutes_this_month+'m', 'of talk time', '') +
-        usageCard('Est. Usage Cost', '₹'+u.estimated_cost_inr, 'this month', '') +
+        usageCard('Voice Leads', u.voice_leads_month, 'captured this month', '') +
       '</div>' +
       '<div class="stats-grid" style="margin-bottom:24px">' +
-        statCard('Voice Leads', u.voice_leads_month, 'blue', 'this month') +
         statCard('Chat Leads', u.chat_leads_month, 'purple', 'this month') +
         statCard('Total Calls Ever', u.total_calls, '', '') +
         statCard('Total Minutes', u.total_minutes+'m', '', 'all time') +
+        statCard('Plan', u.plan_type ? u.plan_type.charAt(0).toUpperCase()+u.plan_type.slice(1) : 'Trial', 'blue', '') +
       '</div>' +
-      '<div class="cost-note">' +
-        '<strong>About this estimate:</strong> Usage cost is estimated at ₹5/min (Bolna AI + Vobiz telephony). ' +
-        'Your monthly subscription is ₹'+u.subscription_fee_inr+'. ' +
-        'Actual billing is a flat monthly fee — you won\'t be charged per minute.' +
-      '</div>';
+      '<div class="cost-note">' + planNote + '</div>';
   });
 }
 
