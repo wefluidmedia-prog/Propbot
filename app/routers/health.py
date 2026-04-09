@@ -348,6 +348,15 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
 .roi-t .save td{font-weight:800;color:var(--green-text);font-size:15px;border-top:2px solid #A7F3D0;padding-top:12px;}
 .roi-note{font-size:13px;color:var(--muted);line-height:1.55;font-style:italic;}
 
+/* VIDEO DEMO SECTION */
+.video-demo-section{padding:80px 40px;background:#fff;}
+.video-demo-inner{max-width:860px;margin:0 auto;text-align:center;}
+.video-demo-hdr{margin-bottom:36px;}
+.video-wrap{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,.12);border:1px solid var(--border);}
+.video-frame{position:absolute;top:0;left:0;width:100%;height:100%;border:0;border-radius:16px;}
+.video-caption{font-size:13px;color:var(--light);margin-top:16px;}
+.video-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:36px;}
+
 /* FAQ */
 .faq{padding:80px 40px;background:#fff;}
 .faq-inner{max-width:720px;margin:0 auto;}
@@ -386,46 +395,128 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
 
 /* RESPONSIVE */
 @media(max-width:900px){
-  .nav-inner{padding:14px 24px;}
+  .nav-inner{padding:14px 20px;}
   .nav-links{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(250,250,248,.97);backdrop-filter:blur(20px);flex-direction:column;justify-content:center;align-items:center;gap:8px;z-index:999;}
   .nav-links.open{display:flex;}
   .nav-links a{font-size:18px;padding:12px 24px;}
   .nav-toggle{display:flex;z-index:1001;position:relative;}
-  .hero{padding:48px 24px 56px;}
-  .hero-inner{grid-template-columns:1fr;gap:40px;}
-  .hero h1{font-size:38px;letter-spacing:-1.5px;}
-  .hero p{font-size:16px;}
+
+  /* Hero */
+  .hero{padding:40px 20px 52px;}
+  .hero-inner{grid-template-columns:1fr;gap:32px;}
+  .hero h1{font-size:36px;letter-spacing:-1.5px;}
+  .hero p{font-size:15px;max-width:100%;}
+  .btn-hero{padding:14px 28px;font-size:15px;}
   .float-b{display:none;}
-  .trust-bar{padding:14px 24px;}
-  .trust-bar-inner{gap:20px;}
+  .hero-visual{display:none;}
+
+  /* Trust */
+  .trust-bar{padding:12px 20px;}
+  .trust-bar-inner{gap:14px;justify-content:flex-start;}
   .tdiv{display:none;}
-  .demo{padding:56px 24px;}
-  .demo-inner{grid-template-columns:1fr;gap:40px;}
-  .pain{padding:56px 24px;}
-  .pain-grid{grid-template-columns:1fr;gap:16px;max-width:380px;margin:0 auto;}
-  .compare{padding:56px 24px;}
-  .ct-table{font-size:12px;}
+  .ti{font-size:12px;}
+
+  /* Video */
+  .video-demo-section{padding:48px 20px;}
+  .video-stats{grid-template-columns:repeat(2,1fr);}
+
+  /* Pain */
+  .pain{padding:52px 20px;}
+  .pain h2{font-size:28px;}
+  .pain-grid{grid-template-columns:1fr;gap:14px;max-width:380px;margin:0 auto;}
+
+  /* Compare */
+  .compare{padding:52px 20px;}
+  .compare-inner{overflow-x:auto;}
+  .ct-table{font-size:12px;min-width:460px;}
   .ct-table th,.ct-table td{padding:10px 11px;}
-  .features{padding:56px 24px;}
+
+  /* Features */
+  .features{padding:52px 20px;}
   .feat-grid{grid-template-columns:repeat(2,1fr);}
-  .how{padding:56px 24px;}
-  .how-steps{grid-template-columns:1fr;gap:32px;max-width:340px;margin:0 auto;}
+
+  /* Social proof */
+  .social-proof{padding:48px 20px;}
+  .sp-cards{grid-template-columns:1fr;}
+
+  /* How */
+  .how{padding:52px 20px;}
+  .how-steps{grid-template-columns:1fr;gap:28px;max-width:340px;margin:0 auto;}
   .how-steps::before{display:none;}
-  .pricing{padding:56px 24px;}
+
+  /* Pricing */
+  .pricing{padding:52px 20px;}
   .plans-row{grid-template-columns:1fr;max-width:400px;margin-left:auto;margin-right:auto;}
-  .faq{padding:56px 24px;}
-  .final-cta{padding:56px 24px;}
-  .final-cta h2{font-size:28px;}
-  .footer{padding:40px 24px 24px;}
+  .price-card{padding:28px 24px;}
+  .pamt{font-size:40px;}
+  .roi-box{padding:20px;}
+
+  /* FAQ */
+  .faq{padding:52px 20px;}
+
+  /* Final CTA */
+  .final-cta{padding:52px 20px;}
+  .final-cta h2{font-size:26px;}
+  .btn-final{padding:14px 32px;font-size:15px;}
+
+  /* Footer */
+  .footer{padding:40px 20px 24px;}
+  .footer-inner{gap:28px;}
   .footer-bot{flex-direction:column;text-align:center;}
-  .demo-stats{grid-template-columns:1fr 1fr;}
-  .sec-h2{font-size:30px;}
+
+  /* Contact */
+  .contact-section{padding:48px 20px;}
+
+  /* Misc */
+  .sec-h2{font-size:28px;}
+  .sec-sub{font-size:15px;}
 }
+
 @media(max-width:480px){
-  .hero h1{font-size:32px;}
+  .hero{padding:32px 16px 44px;}
+  .hero h1{font-size:30px;letter-spacing:-1px;}
+  .hero-badge{font-size:11px;}
+  .btn-hero{width:100%;justify-content:center;padding:15px 20px;}
+  .hero-fine{font-size:12px;gap:12px;}
+
+  .trust-bar{padding:10px 16px;}
+  .trust-bar-inner{gap:10px;}
+
+  .video-demo-section{padding:40px 16px;}
+  .video-stats{grid-template-columns:repeat(2,1fr);gap:10px;}
+
+  .pain{padding:44px 16px;}
+  .pn{font-size:36px;}
+
+  .compare{padding:44px 16px;}
+
+  .features{padding:44px 16px;}
   .feat-grid{grid-template-columns:1fr;}
-  .demo-stats{grid-template-columns:1fr 1fr;}
-  .trust-bar-inner{gap:14px;}
+  .fc{padding:22px 18px;}
+
+  .social-proof{padding:40px 16px;}
+
+  .how{padding:44px 16px;}
+
+  .pricing{padding:44px 16px;}
+  .price-card{padding:24px 18px;}
+  .pamt{font-size:36px;}
+  .btn-price{padding:13px;}
+
+  .faq{padding:44px 16px;}
+  .faq-list summary{font-size:14px;}
+
+  .final-cta{padding:44px 16px;}
+  .final-cta h2{font-size:24px;}
+  .btn-final{width:100%;justify-content:center;padding:15px 20px;}
+
+  .footer{padding:32px 16px 20px;}
+  .contact-section{padding:40px 16px;}
+  .contact-form .row{flex-direction:column;}
+
+  .sec-h2{font-size:24px;}
+  .ds-card{padding:16px 12px;}
+  .ds-num{font-size:26px;}
 }
 
 /* Social proof */
@@ -484,7 +575,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
     <span></span><span></span><span></span>
   </button>
   <div class="nav-links" id="nlinks">
-    <a href="#demo">Live Demo</a>
+    <a href="#video-demo">Live Demo</a>
     <a href="#features">Features</a>
     <a href="#pricing">Pricing</a>
     <a href="#faq">FAQ</a>
@@ -562,100 +653,49 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
 <!-- FOUNDERS BANNER -->
 <!-- __FOUNDERS_BANNER__ -->
 
-<!-- TRUST BAR -->
-<div class="trust-bar">
-<div class="trust-bar-inner">
-  <div class="ti">&#128222; <strong>24/7</strong> Availability</div>
-  <div class="tdiv"></div>
-  <div class="ti">&#127470;&#127475; Hindi <strong>+</strong> English <strong>+</strong> Hinglish</div>
-  <div class="tdiv"></div>
-  <div class="ti">&#9889; Setup in <strong>5 minutes</strong></div>
-  <div class="tdiv"></div>
-  <div class="ti">&#128176; Save <strong>&#8377;1.5L+/year</strong> vs receptionist</div>
-  <div class="tdiv"></div>
-  <div class="ti">&#128274; Your data, <strong>100% secure</strong></div>
-</div>
-</div>
 
-<!-- DEMO -->
-<section class="demo" id="demo">
-<div class="demo-inner">
-  <div>
-    <div class="sec-label">Live Demo</div>
-    <h2 class="sec-h2">Hear Exactly What Your Buyers Experience</h2>
-    <p class="sec-sub">This is a real conversation PropBot handles at 2 AM &mdash; while you sleep. Natural Hindi. Instant responses. Lead captured and site visit booked before you wake up.</p>
-    <div class="demo-stats">
-      <div class="ds-card">
-        <div class="ds-num">&lt;1<span class="u">s</span></div>
-        <div class="ds-lbl">Response time on every single call</div>
-      </div>
-      <div class="ds-card">
-        <div class="ds-num">24<span class="u">/7</span></div>
-        <div class="ds-lbl">Zero downtime, zero sick days</div>
-      </div>
-      <div class="ds-card">
-        <div class="ds-num">6</div>
-        <div class="ds-lbl">Natural Indian voices to choose from</div>
-      </div>
-      <div class="ds-card">
-        <div class="ds-num">5<span class="u">min</span></div>
-        <div class="ds-lbl">From signup to live AI receptionist</div>
-      </div>
-    </div>
+<!-- VIDEO DEMO -->
+<section class="video-demo-section" id="video-demo">
+<div class="video-demo-inner">
+  <div class="video-demo-hdr">
+    <div class="sec-label">Watch It Live</div>
+    <h2 class="sec-h2">See PropBot Handle a Real Lead Call</h2>
+    <p class="sec-sub" style="margin:0 auto;">A buyer called at 11 PM. Broker was asleep. PropBot answered in Hindi, qualified the lead, and booked a site visit &mdash; all before morning.</p>
   </div>
-  <div>
-    <div class="convo-card">
-      <div class="convo-hdr">
-        <div style="display:flex;align-items:center;">
-          <div class="dots"><span class="d-r"></span><span class="d-y"></span><span class="d-g"></span></div>
-          <span class="convo-title">Incoming call &mdash; Tuesday, 2:17 AM</span>
-        </div>
-        <div class="convo-live">LIVE CALL</div>
-      </div>
-      <div class="convo-body">
-        <div class="cm">
-          <div class="ca ca-bot">&#129302;</div>
-          <div class="cb">
-            <div class="cname">Priya &middot; PropBot AI</div>
-            <div class="ct ct-bot">Namaste! Main Priya hoon. Aap kaunsi property dhundh rahe hain? &#128591;</div>
-          </div>
-        </div>
-        <div class="cm cm-r">
-          <div class="ca ca-usr">&#128100;</div>
-          <div class="cb">
-            <div class="cname">Suresh M.</div>
-            <div class="ct ct-usr">Bhai 3BHK chahiye, Noida Sector 62, budget mera 60&ndash;70 lakh hai</div>
-          </div>
-        </div>
-        <div class="cm">
-          <div class="ca ca-bot">&#129302;</div>
-          <div class="cb">
-            <div class="cname">Priya &middot; PropBot AI</div>
-            <div class="ct ct-bot">Bilkul! Sector 62 mein ek 3BHK hai &mdash; 1450 sqft, 3rd floor, &#8377;68L. Bahut accha option hai. Aapka naam aur number le sakti hoon?</div>
-          </div>
-        </div>
-        <div class="cm cm-r">
-          <div class="ca ca-usr">&#128100;</div>
-          <div class="cb">
-            <div class="cname">Suresh M.</div>
-            <div class="ct ct-usr">Suresh Mehta, 9876543210</div>
-          </div>
-        </div>
-        <div class="cm">
-          <div class="ca ca-bot">&#129302;</div>
-          <div class="cb">
-            <div class="cname">Priya &middot; PropBot AI</div>
-            <div class="ct ct-bot">Perfect Suresh ji! Kal subah 11 baje site visit book kar diya hai. Confirm ho gaya &#9989;</div>
-          </div>
-        </div>
-      </div>
-      <div class="convo-result">
-        <div class="cr-icon">&#127919;</div>
-        <div>
-          <div class="cr-title">Lead Captured + Site Visit Booked</div>
-          <div class="cr-detail">Suresh Mehta &middot; 3BHK &#8377;68L &middot; Visit: Tomorrow 11 AM &rarr; your Google Calendar &middot; Alert sent instantly</div>
-        </div>
-      </div>
+  <!-- ═══════════════════════════════════════════════════════════════
+       TO ADD YOUR VIDEO:
+       Option A (YouTube): Replace VIDEO_ID below with your YouTube video ID
+                           e.g. for https://youtu.be/dQw4w9WgXcQ → VIDEO_ID = dQw4w9WgXcQ
+       Option B (Direct):  Replace the entire <iframe> with:
+                           <video controls style="width:100%;border-radius:16px;" src="YOUR_VIDEO_URL.mp4"></video>
+       ═══════════════════════════════════════════════════════════════ -->
+  <div class="video-wrap">
+    <iframe
+      id="demo-video-frame"
+      class="video-frame"
+      src="https://www.youtube.com/embed/VIDEO_ID?rel=0&modestbranding=1"
+      title="PropBot Live Call Demo"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen>
+    </iframe>
+  </div>
+  <p class="video-caption">&#128222; Real call &nbsp;&middot;&nbsp; Real buyer &nbsp;&middot;&nbsp; Real Hindi conversation &nbsp;&middot;&nbsp; Lead captured automatically</p>
+  <div class="video-stats">
+    <div class="ds-card">
+      <div class="ds-num">&lt;1<span class="u">s</span></div>
+      <div class="ds-lbl">Response time on every call</div>
+    </div>
+    <div class="ds-card">
+      <div class="ds-num">24<span class="u">/7</span></div>
+      <div class="ds-lbl">Zero downtime, zero sick days</div>
+    </div>
+    <div class="ds-card">
+      <div class="ds-num">6</div>
+      <div class="ds-lbl">Natural Indian voices</div>
+    </div>
+    <div class="ds-card">
+      <div class="ds-num">5<span class="u">min</span></div>
+      <div class="ds-lbl">From signup to live</div>
     </div>
   </div>
 </div>
@@ -709,6 +749,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
       <tr><td>Simultaneous Calls</td><td class="td-bad">1 call at a time</td><td class="td-good">Unlimited, simultaneously</td></tr>
       <tr><td>Setup Time</td><td class="td-bad">2&ndash;4 weeks training</td><td class="td-good">5 minutes. You&rsquo;re live.</td></tr>
       <tr><td>Sick Days / Leaves</td><td class="td-bad">15&ndash;20 days/year absent</td><td class="td-good">Zero. Ever.</td></tr>
+      <tr><td>Outbound Follow-Up Calls</td><td class="td-bad">Manual / forgets</td><td style="background:#F5F3FF;color:#6D28D9;font-weight:600;font-size:13px;">&#9670; Coming Soon</td></tr>
     </tbody>
   </table>
   <div class="compare-callout">
@@ -790,6 +831,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
         <li><span class="ck">&#10003;</span> Up to 50 calls / month</li>
         <li class="dm"><span class="dash">&mdash;</span> Chat widget for website</li>
         <li class="dm"><span class="dash">&mdash;</span> Priority support</li>
+        <li class="dm"><span style="color:#C4B5FD">&#9670;</span> Outbound follow-up calls <span style="font-size:10px;font-weight:700;color:#7C3AED;background:#EDE9FE;border:1px solid #C4B5FD;border-radius:20px;padding:1px 7px;margin-left:4px;">Coming Soon</span></li>
       </ul>
       <a href="/signup?plan=starter" class="btn-price btn-outline">Start Free Trial</a>
     </div>
@@ -807,6 +849,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
         <li><span class="ck">&#10003;</span> <strong>Unlimited calls</strong></li>
         <li><span class="ck">&#10003;</span> Chat widget for your website</li>
         <li><span class="ck">&#10003;</span> Priority onboarding support</li>
+        <li class="dm"><span style="color:#C4B5FD">&#9670;</span> Outbound follow-up calls <span style="font-size:10px;font-weight:700;color:#7C3AED;background:#EDE9FE;border:1px solid #C4B5FD;border-radius:20px;padding:1px 7px;margin-left:4px;">Coming Soon</span></li>
       </ul>
       <a href="/signup?plan=pro" class="btn-price">Start Free Trial &rarr;</a>
     </div>
@@ -881,7 +924,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
   </div>
   <div class="fcol">
     <h4>Product</h4>
-    <a href="#demo">Live Demo</a>
+    <a href="#video-demo">Live Demo</a>
     <a href="#features">Features</a>
     <a href="#pricing">Pricing</a>
     <a href="#how">How It Works</a>
