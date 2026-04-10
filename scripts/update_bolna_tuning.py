@@ -29,11 +29,13 @@ BOLNA_API_URL = os.environ.get("BOLNA_API_URL", "https://api.bolna.dev")
 def main():
     parser = argparse.ArgumentParser(description="Update Bolna agent voice tuning")
     parser.add_argument("--agent-id", required=True, help="Bolna agent UUID")
-    parser.add_argument("--words-for-interruption", type=int, default=6)
-    parser.add_argument("--interruption-backoff", type=int, default=250)
-    parser.add_argument("--endpointing", type=int, default=350)
-    parser.add_argument("--hangup-after-silence", type=int, default=15)
+    parser.add_argument("--words-for-interruption", type=int, default=3)
+    parser.add_argument("--interruption-backoff", type=int, default=150)
+    parser.add_argument("--endpointing", type=int, default=250)
+    parser.add_argument("--hangup-after-silence", type=int, default=10)
     parser.add_argument("--hangup-message", default="Bye!")
+    parser.add_argument("--incremental-delay", type=int, default=200)
+    parser.add_argument("--trigger-user-online-after", type=int, default=20)
     args = parser.parse_args()
 
     if not BOLNA_API_KEY:
@@ -59,6 +61,8 @@ def main():
     tc["interruption_backoff_period"] = args.interruption_backoff
     tc["hangup_after_silence"] = args.hangup_after_silence
     tc["call_hangup_message"] = args.hangup_message
+    tc["incremental_delay"] = args.incremental_delay
+    tc["trigger_user_online_message_after"] = args.trigger_user_online_after
     updated_tasks[0]["tools_config"]["transcriber"]["endpointing"] = args.endpointing
 
     payload = {
@@ -86,6 +90,8 @@ def main():
         print(f"  endpointing: {vtr['endpointing']}")
         print(f"  hangup_after_silence: {vtc['hangup_after_silence']}")
         print(f"  call_hangup_message: {vtc['call_hangup_message']}")
+        print(f"  incremental_delay: {vtc.get('incremental_delay', 'N/A')}")
+        print(f"  trigger_user_online_after: {vtc.get('trigger_user_online_message_after', 'N/A')}")
     else:
         print(f"Failed ({resp.status_code}): {resp.text[:500]}", file=sys.stderr)
         sys.exit(1)

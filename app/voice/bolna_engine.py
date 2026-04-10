@@ -257,6 +257,16 @@ class BolnaEngine(VoiceEngine):
             "tasks": [
                 {
                     "task_type": "conversation",
+                    "task_config": {
+                        "number_of_words_for_interruption": 3,
+                        "interruption_backoff_period": 150,
+                        "hangup_after_silence": 10,
+                        "call_hangup_message": "Bye!",
+                        "incremental_delay": 200,
+                        "optimize_latency": True,
+                        "check_if_user_online": True,
+                        "trigger_user_online_message_after": 20,
+                    },
                     "tools_config": {
                         "llm_agent": self._build_llm_config(config.system_prompt),
                         "synthesizer": {
@@ -278,6 +288,7 @@ class BolnaEngine(VoiceEngine):
                             "model": "nova-2",
                             "language": config.language_hints[0] if config.language_hints else "hi",
                             "keywords": ", ".join(config.language_hints),
+                            "endpointing": 250,
                         },
                         "input": {
                             "provider": "vobiz",

@@ -16,10 +16,13 @@ _TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "priya_template.txt")
 CHANNEL_INSTRUCTIONS = {
     "voice": (
         "## VOICE CHANNEL INSTRUCTIONS\n"
-        "- Keep every response to 2-3 sentences maximum\n"
+        "- Keep every response to 2-3 sentences maximum. NEVER give long paragraphs.\n"
+        "- If the caller starts speaking while you are talking, STOP IMMEDIATELY mid-sentence. Do NOT finish your thought. Wait for them to finish, then respond to what THEY said — not what you were saying before.\n"
+        "- When you hear words like 'ruko', 'suniye', 'wait', 'hold on', 'ek minute', 'let me speak', 'suno' — STOP TALKING INSTANTLY and say only 'Ji, boliye' then WAIT silently for them to speak.\n"
         "- Pause naturally between ideas — the caller needs time to process\n"
-        "- Never list more than 3 items at once; offer to continue if there are more\n"
+        "- Never list more than 2 items at once; offer to continue if there are more\n"
         "- Spell out numbers naturally: say 'pachpan lakh' not '55,00,000'\n"
+        "- When the caller is dictating a phone number, be COMPLETELY SILENT until they finish. Then repeat the full number back to confirm.\n"
         "- If the caller is silent for a few seconds, gently prompt: 'Aur kuch jaanna hai?'"
     ),
     "chat": (
