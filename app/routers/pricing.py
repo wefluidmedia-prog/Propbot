@@ -159,6 +159,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
       <li><span class="ck">&#10003;</span> Lead alerts to your email</li>
       <li><span class="ck">&#10003;</span> Lead &amp; call dashboard</li>
       <li><span class="ck">&#10003;</span> Up to 50 calls / month</li>
+      <li class="dm"><span class="dash">&mdash;</span> Call recordings &amp; transcripts</li>
       <li class="dm"><span class="dash">&mdash;</span> Chat widget for website</li>
       <li class="dm"><span class="dash">&mdash;</span> Priority support</li>
       <li class="soon"><span class="dash" style="color:#C4B5FD">&#9670;</span> Outbound follow-up calls <span class="cs-tag">Coming Soon</span></li>
@@ -181,6 +182,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
       <li><span class="ck">&#10003;</span> <strong>Unlimited calls</strong></li>
       <li><span class="ck">&#10003;</span> Chat widget for your website</li>
       <li><span class="ck">&#10003;</span> Priority onboarding support</li>
+      <li><span class="ck">&#10003;</span> Call recordings &amp; transcripts</li>
       <li class="soon"><span class="dash" style="color:#C4B5FD">&#9670;</span> Outbound follow-up calls <span class="cs-tag">Coming Soon</span></li>
     </ul>
     <a href="/signup?plan=pro" class="btn btn-fill">Start Free Trial &rarr;</a>
@@ -223,7 +225,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
     <details><summary>Do I need a credit card to start?</summary><div class="fb">No. Sign up, set up your AI receptionist, and use it free for 14 days. We only ask for payment details when your trial ends.</div></details>
     <details><summary>What happens when I reach 50 calls on Starter?</summary><div class="fb">Once you hit 50 calls/month, PropBot will inform callers the line is busy. You&rsquo;ll get a notification to upgrade to Pro for unlimited calls. You won&rsquo;t be charged extra automatically.</div></details>
     <details><summary>Can I switch plans later?</summary><div class="fb">Yes. Upgrade from Starter to Pro at any time from your dashboard. Changes take effect immediately.</div></details>
-    <details><summary>What language does the AI speak?</summary><div class="fb">Hindi, Hinglish (mixed Hindi-English), and English. You can also choose a male AI voice if you prefer &mdash; 6 voices total.</div></details>
+    <details><summary>What language does the AI speak?</summary><div class="fb">Hindi, Hinglish (mixed Hindi-English), and English. You can also choose a male AI voice if you prefer from male and female AI voices to match your brand.</div></details>
     <details><summary>What is the chat widget?</summary><div class="fb">A small chat button you can embed on your website or property listings. Visitors chat with your AI, and leads are captured just like calls.</div></details>
     <details><summary>Can I cancel anytime?</summary><div class="fb">Yes &mdash; cancel from your dashboard with one click. No lock-in, no cancellation fee, no questions asked.</div></details>
   </div>

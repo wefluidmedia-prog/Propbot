@@ -255,7 +255,16 @@ async def get_calls(
         .limit(limit)
         .execute()
     )
-    return {"calls": result.data, "count": len(result.data)}
+    calls = result.data
+
+    # Gate recordings & transcripts to Pro plan only
+    client_row = db.table("clients").select("plan_type").eq("id", client_id).single().execute().data
+    if not client_row or client_row.get("plan_type") != "pro":
+        for call in calls:
+            call.pop("recording_url", None)
+            call.pop("transcript", None)
+
+    return {"calls": calls, "count": len(calls)}
 
 
 @router.get("/api/callbacks")

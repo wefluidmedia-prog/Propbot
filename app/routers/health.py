@@ -70,6 +70,24 @@ async def root():
 
     html = html.replace("<!-- __WHATSAPP_FLOAT__ -->", wa_float)
     html = html.replace("<!-- __WHATSAPP_FOOTER__ -->", wa_footer)
+
+    # Demo call floating button (only if configured)
+    demo_phone = settings.DEMO_PHONE_NUMBER
+    if demo_phone:
+        demo_btn = (
+            f'<a class="demo-call-float" href="tel:+91{demo_phone}">'
+            '<span class="dcf-pulse"></span>'
+            '<svg viewBox="0 0 24 24" width="22" height="22" fill="#fff">'
+            '<path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 '
+            '11.36 11.36 0 003.58.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 '
+            '011-1h3.5a1 1 0 011 1 11.36 11.36 0 00.57 3.58 1 1 0 01-.24 1.01l-2.2 2.2z"/>'
+            '</svg>'
+            '<span class="dcf-txt">Try a Demo Call</span></a>'
+        )
+    else:
+        demo_btn = ""
+    html = html.replace("<!-- __DEMO_CALL__ -->", demo_btn)
+
     return html
 
 
@@ -568,6 +586,15 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
 .wa-float{position:fixed;bottom:24px;right:24px;z-index:999;width:56px;height:56px;background:#25D366;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(37,211,102,.4);transition:transform .2s;text-decoration:none;}
 .wa-float:hover{transform:scale(1.1);}
 .wa-float svg{width:28px;height:28px;fill:#fff;}
+
+/* Demo call floating button */
+.demo-call-float{position:fixed;bottom:90px;right:24px;z-index:999;display:flex;align-items:center;gap:8px;padding:12px 20px;background:#FF5722;color:#fff;border-radius:28px;font-size:14px;font-weight:700;text-decoration:none;box-shadow:0 4px 20px rgba(255,87,34,.4);transition:transform .2s;font-family:'Inter',sans-serif;}
+.demo-call-float:hover{transform:scale(1.05);box-shadow:0 6px 28px rgba(255,87,34,.5);}
+.demo-call-float svg{flex-shrink:0;}
+.dcf-pulse{position:absolute;top:-4px;right:-4px;width:12px;height:12px;background:#4CAF50;border-radius:50%;border:2px solid #fff;}
+.dcf-pulse::after{content:'';position:absolute;top:-3px;left:-3px;width:12px;height:12px;background:#4CAF50;border-radius:50%;animation:dcfPulse 2s infinite;}
+@keyframes dcfPulse{0%{transform:scale(1);opacity:.7;}100%{transform:scale(2.2);opacity:0;}}
+@media(max-width:480px){.demo-call-float span.dcf-txt{display:none;}.demo-call-float{padding:14px;border-radius:50%;}}
 </style>
 </head>
 <body>
@@ -704,8 +731,8 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
       <div class="ds-lbl">Zero downtime, zero sick days</div>
     </div>
     <div class="ds-card">
-      <div class="ds-num">6</div>
-      <div class="ds-lbl">Natural Indian voices</div>
+      <div class="ds-num">100<span class="u">%</span></div>
+      <div class="ds-lbl">Calls answered, zero missed</div>
     </div>
     <div class="ds-card">
       <div class="ds-num">5<span class="u">min</span></div>
@@ -781,7 +808,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
     <h2 class="sec-h2">Your Complete AI Receptionist Stack</h2>
   </div>
   <div class="feat-grid">
-    <div class="fc"><div class="fic fi-o">&#128222;</div><h3>AI Voice Calls</h3><p>Natural Hindi and English conversations. 6 Indian voices. Callers won&rsquo;t know it&rsquo;s AI &mdash; sounds like a real, warm team member.</p></div>
+    <div class="fc"><div class="fic fi-o">&#128222;</div><h3>AI Voice Calls</h3><p>Natural Hindi and English conversations with natural Indian voices. Callers won&rsquo;t know it&rsquo;s AI &mdash; sounds like a real, warm team member.</p></div>
     <div class="fc"><div class="fic fi-g">&#128172;</div><h3>Website Chat Widget</h3><p>Embed on your property website in 2 minutes. Answers listing questions, captures phone numbers, qualifies visitors automatically.</p></div>
     <div class="fc"><div class="fic fi-b">&#127919;</div><h3>Auto Lead Capture</h3><p>Name, phone, budget, area preference &mdash; all captured the moment they call. Instant email alert. Nothing falls through the cracks.</p></div>
     <div class="fc"><div class="fic fi-p">&#128197;</div><h3>Google Calendar Booking</h3><p>PropBot books site visits live on the call, straight into your Google Calendar. Confirms with the caller on the spot. Zero back-and-forth.</p></div>
@@ -889,7 +916,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
     <h2 class="sec-h2">Questions? We Have Answers.</h2>
   </div>
   <div class="faq-list">
-    <details><summary>Will my callers know they&rsquo;re talking to AI?</summary><div class="fb">PropBot uses natural Indian voices that sound remarkably human. Most callers don&rsquo;t realise it&rsquo;s AI. Choose from 6 voices &mdash; male and female &mdash; with natural Hindi/English accents.</div></details>
+    <details><summary>Will my callers know they&rsquo;re talking to AI?</summary><div class="fb">PropBot uses natural Indian voices that sound remarkably human. Most callers don&rsquo;t realise it&rsquo;s AI. Choose from male and female voices with natural Hindi/English accents.</div></details>
     <details><summary>Does it work in Hindi?</summary><div class="fb">Yes &mdash; fluent Hindi, English, and Hinglish. Understands mixed-language queries naturally, just like how real conversations happen in India. No robotic translation.</div></details>
     <details><summary>What if the caller wants to talk to me directly?</summary><div class="fb">PropBot captures their details and sends you an instant alert. You can also enable callback requests. You&rsquo;re always in control of follow-ups.</div></details>
     <details><summary>How long does setup take?</summary><div class="fb">Under 5 minutes. Sign up, add your property details, pick a voice &mdash; and your AI receptionist is live. No technical skills. No waiting for an onboarding call.</div></details>
@@ -989,6 +1016,7 @@ document.querySelectorAll('.nav-links a').forEach(function(a){a.addEventListener
 lnk.addEventListener('click',function(e){if(e.target===lnk){closeNav();}});
 </script>
 <!-- __WHATSAPP_FLOAT__ -->
+<!-- __DEMO_CALL__ -->
 
 <script>
 function submitContact(e){

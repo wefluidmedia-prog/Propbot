@@ -172,6 +172,30 @@ class BolnaEngine(VoiceEngine):
         )
         return data
 
+    async def get_call_details(self, call_id: str) -> dict | None:
+        """
+        Fetch call details (recording URL, transcript) from Bolna API.
+
+        Tries GET /call/{call_id} — returns dict with recording_url/transcript
+        or None if unavailable.
+        """
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(
+                    f"{self.api_url}/call/{call_id}",
+                    headers=self.headers,
+                )
+                if resp.is_success:
+                    data = resp.json()
+                    return {
+                        "recording_url": data.get("recording_url", data.get("recording", {}).get("url")),
+                        "transcript": data.get("transcript", ""),
+                    }
+                logger.warning("Bolna get_call_details: status=%s for call_id=%s", resp.status_code, call_id)
+        except Exception as e:
+            logger.warning("Bolna get_call_details failed for call_id=%s: %s", call_id, e)
+        return None
+
     def parse_webhook(self, payload: dict) -> NormalizedEvent:
         """
         Normalize Bolna webhook payloads into NormalizedEvent.

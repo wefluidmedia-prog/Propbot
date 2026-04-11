@@ -126,6 +126,16 @@ async def voice_webhook(request: Request):
         return await _handle_tool_calls(engine, event)
 
     if event.event_type == "call_ended":
+        logger.info("call_ended raw payload keys: %s", list(payload.keys()))
+        # If webhook didn't include recording/transcript, fetch from Bolna API
+        if not event.recording_url or not event.transcript:
+            try:
+                details = await engine.get_call_details(event.call_id)
+                if details:
+                    event.recording_url = event.recording_url or details.get("recording_url")
+                    event.transcript = event.transcript or details.get("transcript")
+            except Exception as e:
+                logger.warning("Could not fetch call details from Bolna: %s", e)
         try:
             await store_conversation(event)
         except Exception as e:

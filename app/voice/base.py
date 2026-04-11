@@ -103,6 +103,10 @@ class VoiceEngine(ABC):
         """
         ...
 
+    async def get_call_details(self, call_id: str) -> dict | None:
+        """Fetch call details (recording URL, transcript) from the provider API. Returns None if unsupported."""
+        return None
+
     @abstractmethod
     def build_tool_response(self, tool_call_id: str, result: str) -> dict:
         """
