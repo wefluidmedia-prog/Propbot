@@ -646,10 +646,10 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
     <span></span><span></span><span></span>
   </button>
   <div class="nav-links" id="nlinks">
-    <a href="#video-demo">Live Demo</a>
-    <a href="#features">Features</a>
+    <a href="#how">How It Works</a>
     <a href="#pricing">Pricing</a>
     <a href="#faq">FAQ</a>
+    <a href="#contact">Contact</a>
     <a href="/dashboard">Login</a>
     <a href="/signup" class="btn-nav">Start Free Trial &rarr;</a>
   </div>
