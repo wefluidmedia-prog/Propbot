@@ -1,40 +1,33 @@
 """
-Self-serve signup wizard — 3-step onboarding flow.
+Self-serve signup wizard — 2-step onboarding flow.
 
-Step 1: Business details → creates client row
-Step 2: Choose voice → saves voice selection
-Step 3: Property listings → saves KB, provisions Bolna agent, redirects to dashboard
+Step 1: Verify phone (OTP via MSG91)
+Step 2: Business details + property listings → provisions Bolna agent → dashboard
 """
 
+import hashlib
+import hmac
 import logging
 import time
-import hmac
-import hashlib
 
-from fastapi import APIRouter, Request, HTTPException, Query
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from app.config import settings
 from app.db.supabase_client import get_supabase
-from app.voice.voice_catalog import get_catalog
-
-
-def _ga_snippet() -> str:
-    gid = settings.GA_MEASUREMENT_ID
-    if not gid:
-        return ""
-    return (
-        f'<script async src="https://www.googletagmanager.com/gtag/js?id={gid}"></script>\n'
-        f"<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments);}}"
-        f"gtag('js',new Date());gtag('config','{gid}');</script>"
-    )
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
+# Default voice: Priya (ElevenLabs voice ID)
+_DEFAULT_VOICE_ID = "QTKSa2Iyv0yoxvXY2V8a"
+_DEFAULT_PERSONA = "Priya"
+_DEFAULT_VOICE_GENDER = "female"
+
+
+# ─── Session helpers ──────────────────────────────────────────────
 
 def _set_session_cookie(response, client_id: str):
-    """Set session cookie after signup (same as dashboard auth)."""
     secret = (settings.WEBHOOK_SECRET or "propbot-default-secret").encode()
     ts = int(time.time())
     sig = hmac.new(secret, f"{client_id}:{ts}".encode(), hashlib.sha256).hexdigest()[:32]
@@ -43,7 +36,6 @@ def _set_session_cookie(response, client_id: str):
 
 
 def _get_client_from_session(request: Request) -> str | None:
-    """Get client_id from session cookie, or None."""
     token = request.cookies.get("propbot_session")
     if not token:
         return None
@@ -61,181 +53,217 @@ def _get_client_from_session(request: Request) -> str | None:
     return None
 
 
-# ─── Step 1: Business Details ────────────────────────────────────
+def _set_phone_cookie(response, phone: str):
+    """Store verified phone in a signed cookie for Step 2."""
+    secret = (settings.WEBHOOK_SECRET or "propbot-default-secret").encode()
+    ts = int(time.time())
+    sig = hmac.new(secret, f"phone:{phone}:{ts}".encode(), hashlib.sha256).hexdigest()[:32]
+    token = f"{phone}:{ts}:{sig}"
+    response.set_cookie("propbot_phone", token, max_age=1800, httponly=True, samesite="lax")
+
+
+def _get_verified_phone(request: Request) -> str | None:
+    """Return verified phone number from cookie, or None if invalid/expired."""
+    token = request.cookies.get("propbot_phone")
+    if not token:
+        return None
+    try:
+        phone, ts_str, sig = token.split(":")
+        ts = int(ts_str)
+        if time.time() - ts > 1800:
+            return None
+        secret = (settings.WEBHOOK_SECRET or "propbot-default-secret").encode()
+        expected = hmac.new(secret, f"phone:{phone}:{ts}".encode(), hashlib.sha256).hexdigest()[:32]
+        if hmac.compare_digest(sig, expected):
+            return phone
+    except (ValueError, AttributeError):
+        pass
+    return None
+
+
+def _ga_snippet() -> str:
+    gid = settings.GA_MEASUREMENT_ID
+    if not gid:
+        return ""
+    return (
+        f'<script async src="https://www.googletagmanager.com/gtag/js?id={gid}"></script>\n'
+        f"<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments);}}"
+        f"gtag('js',new Date());gtag('config','{gid}');</script>"
+    )
+
+
+def _founder_info() -> dict:
+    """Return founder pricing state: slots total, slots used, is_active."""
+    try:
+        slots_total = int(settings.FOUNDERS_SLOTS or 0)
+    except ValueError:
+        slots_total = 0
+    if slots_total <= 0:
+        return {"active": False, "total": 0, "used": 0, "remaining": 0}
+    try:
+        db = get_supabase()
+        result = db.table("clients").select("id", count="exact").eq("is_founder", True).execute()
+        used = result.count or 0
+    except Exception:
+        used = 0
+    remaining = max(0, slots_total - used)
+    return {"active": remaining > 0, "total": slots_total, "used": used, "remaining": remaining}
+
+
+# ─── Step 1: Phone OTP ───────────────────────────────────────────
 
 @router.get("", response_class=HTMLResponse)
 @router.get("/", response_class=HTMLResponse)
-async def signup_step1(request: Request, plan: str = Query(default="pro")):
+async def signup_step1(request: Request, plan: str = "pro"):
     plan = plan if plan in ("starter", "pro") else "pro"
-    # If already signed up, redirect to appropriate step
-    client_id = _get_client_from_session(request)
-    if client_id:
-        try:
-            db = get_supabase()
-            result = db.table("clients").select("onboarding_step").eq("id", client_id).single().execute()
-            if result.data:
-                step = result.data.get("onboarding_step") or 0
-                if step >= 3:
-                    return RedirectResponse("/dashboard", status_code=302)
-                elif step == 2:
-                    return RedirectResponse("/signup/step3", status_code=302)
-                elif step == 1:
-                    return RedirectResponse("/signup/step2", status_code=302)
-        except Exception:
-            pass  # If DB query fails (e.g. column missing), just show the form
-    return HTMLResponse(_build_step1_html(plan).replace("<!-- __GA__ -->", _ga_snippet()))
+    # If already logged in, redirect to dashboard
+    if _get_client_from_session(request):
+        return RedirectResponse("/dashboard", status_code=302)
+    fi = _founder_info()
+    return HTMLResponse(_build_step1_html(plan, fi).replace("<!-- __GA__ -->", _ga_snippet()))
 
 
-@router.post("")
-@router.post("/")
-async def signup_step1_submit(request: Request):
-    form = await request.form()
-    business_name = str(form.get("business_name", "")).strip()
-    agent_name = str(form.get("agent_name", "")).strip()
-    agent_email = str(form.get("agent_email", "")).strip()
-    agent_phone = str(form.get("agent_phone", "")).strip()
-    city = str(form.get("city", "")).strip()
-
-    plan = str(form.get("plan", "pro")).strip()
-    plan = plan if plan in ("starter", "pro") else "pro"
-
-    if not all([business_name, agent_name, agent_email, agent_phone]):
-        return HTMLResponse(_build_step1_html(plan).replace("<!-- ERROR -->", '<p class="error">Please fill all required fields.</p>').replace("<!-- __GA__ -->", _ga_snippet()))
-
-    # Check if email already exists
-    db = get_supabase()
-    try:
-        existing = db.table("clients").select("id").eq("agent_email", agent_email).limit(1).execute()
-    except Exception as e:
-        logger.error("DB error checking email: %s", e)
-        return HTMLResponse(_build_step1_html(plan).replace("<!-- ERROR -->", '<p class="error">Database error. Please try again.</p>').replace("<!-- __GA__ -->", _ga_snippet()))
-
-    if existing.data:
-        # Resume existing signup
-        client_id = existing.data[0]["id"]
-        response = RedirectResponse("/signup/step2", status_code=302)
-        _set_session_cookie(response, client_id)
-        return response
-
-    # Create new client — try with new columns, fall back to core if migration not applied
-    from datetime import datetime, timezone, timedelta
-    trial_end = (datetime.now(timezone.utc) + timedelta(days=14)).isoformat()
-    try:
-        result = db.table("clients").insert({
-            "business_name": business_name,
-            "agent_name": agent_name,
-            "agent_email": agent_email,
-            "agent_phone": agent_phone,
-            "city": city,
-            "onboarding_step": 1,
-            "subscription_status": "trial",
-            "setup_status": "provisioning",
-            "trial_ends_at": trial_end,
-            "plan_type": plan,
-        }).execute()
-    except Exception:
-        # Migration may not have been applied — insert without new columns
-        result = db.table("clients").insert({
-            "business_name": business_name,
-            "agent_name": agent_name,
-            "agent_email": agent_email,
-            "agent_phone": agent_phone,
-            "subscription_status": "trial",
-            "setup_status": "provisioning",
-            "trial_ends_at": trial_end,
-        }).execute()
-
-    client_id = result.data[0]["id"]
-    logger.info("New signup: %s (%s)", business_name, client_id)
-
-    response = RedirectResponse("/signup/step2", status_code=302)
-    _set_session_cookie(response, client_id)
-    return response
+@router.post("/api/send-otp")
+async def send_otp_api(request: Request):
+    body = await request.json()
+    phone = str(body.get("phone", "")).strip()
+    from app.services.otp_service import send_otp
+    result = await send_otp(phone)
+    return JSONResponse(result)
 
 
-# ─── Step 2: Choose Voice ────────────────────────────────────────
+@router.post("/api/verify-otp")
+async def verify_otp_api(request: Request):
+    body = await request.json()
+    phone = str(body.get("phone", "")).strip()
+    otp = str(body.get("otp", "")).strip()
+    from app.services.otp_service import verify_otp, normalize_phone
+    result = await verify_otp(phone, otp)
+    if result["success"]:
+        # Set verified phone cookie — frontend will redirect to step2
+        resp = JSONResponse(result)
+        _set_phone_cookie(resp, normalize_phone(phone))
+        return resp
+    return JSONResponse(result)
+
+
+# ─── Step 2: Business Details + Listings ─────────────────────────
 
 @router.get("/step2", response_class=HTMLResponse)
-async def signup_step2(request: Request):
-    client_id = _get_client_from_session(request)
-    if not client_id:
+async def signup_step2(request: Request, plan: str = "pro"):
+    # Allow entry via existing session (returning user) or verified phone
+    if not _get_client_from_session(request) and not _get_verified_phone(request):
         return RedirectResponse("/signup", status_code=302)
-    return HTMLResponse(_build_step2_html().replace("<!-- __GA__ -->", _ga_snippet()))
+    plan = plan if plan in ("starter", "pro") else "pro"
+    fi = _founder_info()
+    return HTMLResponse(_build_step2_html(plan, fi).replace("<!-- __GA__ -->", _ga_snippet()))
 
 
 @router.post("/step2")
 async def signup_step2_submit(request: Request):
-    client_id = _get_client_from_session(request)
-    if not client_id:
+    verified_phone = _get_verified_phone(request)
+    existing_client = _get_client_from_session(request)
+    if not verified_phone and not existing_client:
         return RedirectResponse("/signup", status_code=302)
 
     form = await request.form()
-    voice_id = str(form.get("voice_id", "")).strip()
-    persona_name = str(form.get("persona_name", "")).strip() or "Priya"
-    voice_gender = str(form.get("voice_gender", "female")).strip()
-
-    # Find voice name from catalog
-    from app.voice.voice_catalog import get_voice_by_id
-    voice = get_voice_by_id(voice_id)
-    voice_name = voice["name"] if voice else persona_name
-
-    db = get_supabase()
-    db.table("clients").update({
-        "voice_id": voice_id,
-        "voice_gender": voice_gender,
-        "assistant_persona_name": persona_name,
-        "onboarding_step": 2,
-    }).eq("id", client_id).execute()
-
-    return RedirectResponse("/signup/step3", status_code=302)
-
-
-# ─── Step 3: Property Listings ───────────────────────────────────
-
-@router.get("/step3", response_class=HTMLResponse)
-async def signup_step3(request: Request):
-    client_id = _get_client_from_session(request)
-    if not client_id:
-        return RedirectResponse("/signup", status_code=302)
-    return HTMLResponse(STEP3_HTML.replace("<!-- __GA__ -->", _ga_snippet()))
-
-
-@router.post("/step3")
-async def signup_step3_submit(request: Request):
-    client_id = _get_client_from_session(request)
-    if not client_id:
-        return RedirectResponse("/signup", status_code=302)
-
-    form = await request.form()
+    business_name = str(form.get("business_name", "")).strip()
+    agent_name = str(form.get("agent_name", "")).strip()
+    agent_email = str(form.get("agent_email", "")).strip()
+    city = str(form.get("city", "")).strip()
     knowledge_base = str(form.get("knowledge_base", "")).strip()
+    plan = str(form.get("plan", "pro")).strip()
+    plan = plan if plan in ("starter", "pro") else "pro"
 
-    if not knowledge_base:
-        return HTMLResponse(STEP3_HTML.replace("<!-- __GA__ -->", _ga_snippet()).replace("<!-- ERROR -->", '<p class="error">Please add at least some property details.</p>'))
+    if not all([business_name, agent_name, agent_email]):
+        fi = _founder_info()
+        err = '<p class="error">Please fill all required fields.</p>'
+        return HTMLResponse(_build_step2_html(plan, fi).replace("<!-- ERROR -->", err).replace("<!-- __GA__ -->", _ga_snippet()))
 
     db = get_supabase()
-    db.table("clients").update({
-        "knowledge_base": knowledge_base,
-    }).eq("id", client_id).execute()
+    phone = verified_phone or ""
 
-    # Provision voice agent (async)
+    # Check if email already registered — resume their session
+    try:
+        existing = db.table("clients").select("id").eq("agent_email", agent_email).limit(1).execute()
+    except Exception as e:
+        logger.error("DB error checking email: %s", e)
+        fi = _founder_info()
+        err = '<p class="error">Database error. Please try again.</p>'
+        return HTMLResponse(_build_step2_html(plan, fi).replace("<!-- ERROR -->", err).replace("<!-- __GA__ -->", _ga_snippet()))
+
+    if existing.data and not existing_client:
+        client_id = existing.data[0]["id"]
+        response = RedirectResponse("/dashboard", status_code=302)
+        _set_session_cookie(response, client_id)
+        return response
+
+    # Determine founder status
+    fi = _founder_info()
+    is_founder = fi["active"]
+
+    from datetime import datetime, timezone, timedelta
+    trial_end = (datetime.now(timezone.utc) + timedelta(days=14)).isoformat()
+
+    try:
+        result = db.table("clients").insert({
+            "business_name": business_name,
+            "agent_name": agent_name,
+            "agent_email": agent_email,
+            "agent_phone": phone,
+            "city": city,
+            "knowledge_base": knowledge_base,
+            "onboarding_step": 3,
+            "subscription_status": "trial",
+            "setup_status": "provisioning",
+            "trial_ends_at": trial_end,
+            "plan_type": plan,
+            "is_founder": is_founder,
+            "voice_id": _DEFAULT_VOICE_ID,
+            "assistant_persona_name": _DEFAULT_PERSONA,
+            "voice_gender": _DEFAULT_VOICE_GENDER,
+        }).execute()
+    except Exception as e:
+        logger.warning("Insert with new columns failed, trying minimal: %s", e)
+        result = db.table("clients").insert({
+            "business_name": business_name,
+            "agent_name": agent_name,
+            "agent_email": agent_email,
+            "agent_phone": phone,
+            "subscription_status": "trial",
+            "setup_status": "provisioning",
+            "trial_ends_at": trial_end,
+            "voice_id": _DEFAULT_VOICE_ID,
+            "assistant_persona_name": _DEFAULT_PERSONA,
+            "voice_gender": _DEFAULT_VOICE_GENDER,
+        }).execute()
+
+    client_id = result.data[0]["id"]
+    logger.info("New signup: %s (%s) founder=%s", business_name, client_id, is_founder)
+
+    # Provision voice agent async
     try:
         from app.services.onboarding_service import provision_voice_agent
         await provision_voice_agent(client_id)
         logger.info("Voice agent provisioned for %s", client_id)
     except Exception as e:
         logger.error("Failed to provision voice agent for %s: %s", client_id, e)
-        # Still redirect to dashboard — they can use chat, agent can be retried
-        db.table("clients").update({"onboarding_step": 3}).eq("id", client_id).execute()
 
-    return RedirectResponse("/dashboard", status_code=302)
+    response = RedirectResponse("/dashboard", status_code=302)
+    _set_session_cookie(response, client_id)
+    response.delete_cookie("propbot_phone")
+    return response
 
 
-# ─── Voice catalog API ───────────────────────────────────────────
+# ─── Legacy step routes (redirect to new flow) ───────────────────
 
-@router.get("/api/voices")
-async def list_voices():
-    """Public endpoint — returns the voice catalog."""
-    return {"voices": get_catalog()}
+@router.get("/step3", response_class=HTMLResponse)
+async def signup_step3_redirect():
+    return RedirectResponse("/signup/step2", status_code=302)
+
+@router.post("/step3")
+async def signup_step3_post_redirect():
+    return RedirectResponse("/signup/step2", status_code=302)
 
 
 # ─── Shared CSS ──────────────────────────────────────────────────
@@ -259,49 +287,26 @@ body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; back
 .card .subtitle { color: #6B7280; font-size: 14px; margin-bottom: 24px; line-height: 1.55; }
 label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 16px; }
 label span { font-weight: 400; color: #9CA3AF; margin-left: 4px; }
-input[type="text"], input[type="email"], input[type="tel"] { display: block; width: 100%; padding: 12px 14px; margin-top: 5px; border: 1.5px solid #E5E7EB; border-radius: 10px; font-size: 15px; font-family: inherit; color: #111827; background: #FAFAF8; transition: all .15s; }
+input[type="text"], input[type="email"], input[type="tel"], input[type="number"] { display: block; width: 100%; padding: 12px 14px; margin-top: 5px; border: 1.5px solid #E5E7EB; border-radius: 10px; font-size: 15px; font-family: inherit; color: #111827; background: #FAFAF8; transition: all .15s; }
 input:focus { outline: none; border-color: #FF5722; box-shadow: 0 0 0 3px rgba(255,87,34,0.1); background: #fff; }
 .btn-primary { display: block; width: 100%; padding: 14px; margin-top: 24px; background: #FF5722; color: #fff; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all .2s; box-shadow: 0 4px 14px rgba(255,87,34,0.3); }
 .btn-primary:hover { background: #E64A19; transform: translateY(-1px); box-shadow: 0 6px 18px rgba(255,87,34,0.35); }
+.btn-primary:disabled { background: #9CA3AF; box-shadow: none; transform: none; cursor: not-allowed; }
 .error { color: #DC2626; font-size: 13px; margin-bottom: 14px; padding: 10px 14px; background: #FEF2F2; border-radius: 8px; border: 1px solid #FECACA; }
+.success-msg { color: #059669; font-size: 13px; margin-bottom: 14px; padding: 10px 14px; background: #ECFDF5; border-radius: 8px; border: 1px solid #A7F3D0; }
 @media (max-width: 640px) { .card { padding: 22px; } .topbar { padding: 12px 16px; } }
 """
 
-_STEP2_CSS = """
-.voice-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
-.voice-card { display: block; cursor: pointer; border: 1.5px solid #E5E7EB; border-radius: 12px; padding: 14px 16px; transition: all .15s; background: #FAFAF8; }
-.voice-card:hover { border-color: rgba(255,87,34,0.4); background: #fff; }
-.voice-card input[type="radio"] { display: none; }
-.voice-card:has(input:checked) { border-color: #FF5722; background: rgba(255,87,34,0.04); box-shadow: 0 0 0 3px rgba(255,87,34,0.1); }
-.voice-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; flex-wrap: wrap; }
-.voice-meta { font-size: 12px; color: #6B7280; margin-bottom: 4px; }
-.voice-desc { font-size: 13px; color: #374151; line-height: 1.5; }
-.gender-tag { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
-.tag-f { background: #FCE7F3; color: #BE185D; }
-.tag-m { background: #DBEAFE; color: #1D4ED8; }
-.rec-badge { font-size: 11px; padding: 2px 8px; background: #D1FAE5; color: #065F46; border-radius: 10px; font-weight: 600; }
-.filter-bar { display: flex; gap: 8px; margin-bottom: 16px; }
-.filter-btn { padding: 6px 16px; border: 1.5px solid #E5E7EB; border-radius: 20px; background: #fff; font-size: 13px; font-weight: 500; cursor: pointer; color: #6B7280; font-family: inherit; transition: all .15s; }
-.filter-btn.active { background: #FF5722; color: #fff; border-color: #FF5722; }
-.filter-btn:hover:not(.active) { border-color: #FF5722; color: #FF5722; }
-.persona-field { margin-top: 14px; }
-"""
 
+# ─── HTML Builders ────────────────────────────────────────────────
 
-# ─── HTML Templates ──────────────────────────────────────────────
-
-def _build_step1_html(plan: str = "pro") -> str:
-    """Build Step 1 HTML showing the selected plan and a hidden plan input."""
-    if plan == "starter":
-        plan_label = "Starter — ₹2,499/month"
-        plan_color = "#059669"
-        plan_bg = "#ecfdf5"
-        plan_border = "#6ee7b7"
-    else:
-        plan_label = "Pro — ₹4,999/month"
-        plan_color = "#2563eb"
-        plan_bg = "#eff6ff"
-        plan_border = "#93c5fd"
+def _build_step1_html(plan: str, fi: dict) -> str:
+    founder_banner = ""
+    if fi["active"]:
+        founder_banner = f'''
+        <div style="background:linear-gradient(135deg,#fff7ed,#fff3e0);border:1px solid #fed7aa;border-radius:12px;padding:12px 16px;margin-bottom:18px;font-size:13px;color:#92400e;font-weight:600;">
+          🔥 Founder pricing active — only <strong>{fi['remaining']} of {fi['total']}</strong> spots left at 30% off, forever.
+        </div>'''
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -312,140 +317,111 @@ def _build_step1_html(plan: str = "pro") -> str:
 <!-- __GA__ -->
 <style>
 {_SHARED_CSS}
-.plan-pill {{
-    display: inline-flex; align-items: center; gap: 6px;
-    background: {plan_bg}; border: 1px solid {plan_border};
-    color: {plan_color}; padding: 5px 14px; border-radius: 20px;
-    font-size: 13px; font-weight: 600; margin-bottom: 20px;
-}}
-.plan-pill a {{ color: {plan_color}; font-size: 12px; margin-left: 4px; opacity: 0.7; text-decoration: underline; }}
-.trial-note {{ font-size: 13px; color: #059669; font-weight: 500; margin-bottom: 16px; }}
+.phone-row {{ display: flex; gap: 8px; }}
+.phone-row .prefix {{ display: flex; align-items: center; justify-content: center; padding: 12px 14px; background: #F3F4F6; border: 1.5px solid #E5E7EB; border-radius: 10px; font-size: 15px; color: #374151; font-weight: 600; white-space: nowrap; margin-top: 5px; }}
+.phone-row input {{ flex: 1; }}
+.otp-section {{ display: none; margin-top: 16px; animation: fadeIn .3s; }}
+.otp-section.visible {{ display: block; }}
+@keyframes fadeIn {{ from {{ opacity: 0; transform: translateY(-6px); }} to {{ opacity: 1; transform: translateY(0); }} }}
+.otp-input {{ letter-spacing: 8px; font-size: 22px; font-weight: 700; text-align: center; }}
+.resend-link {{ font-size: 12px; color: #6B7280; text-align: center; margin-top: 10px; }}
+.resend-link a {{ color: #FF5722; cursor: pointer; text-decoration: none; }}
+.plan-note {{ font-size: 13px; color: #6B7280; margin-bottom: 20px; }}
 </style>
 </head>
 <body>
 <div class="topbar">
-    <a class="topbar-logo" href="/"><span>Prop</span>Bot</a>
-    <a class="topbar-back" href="/">← Back to home</a>
+  <a class="topbar-logo" href="/"><span>Prop</span>Bot</a>
+  <a class="topbar-back" href="/">← Back to home</a>
 </div>
 <div class="wizard">
-    <div class="steps">
-        <div class="step active">1 · Business Details</div>
-        <div class="step">2 · Choose Voice</div>
-        <div class="step">3 · Add Listings</div>
-    </div>
-    <div class="card">
-        <h2>Tell us about your business</h2>
-        <div class="plan-pill">
-            ✓ {plan_label}
-            <a href="/pricing">change</a>
+  <div class="steps">
+    <div class="step active">1 · Verify Phone</div>
+    <div class="step">2 · Business Details</div>
+  </div>
+  <div class="card">
+    <h2>Verify your phone</h2>
+    <p class="subtitle">We'll send a 6-digit OTP to confirm your number. Your AI receptionist will be ready in minutes.</p>
+    {founder_banner}
+    <div id="msg"></div>
+    <div id="phone-section">
+      <label>Mobile Number <span>*</span>
+        <div class="phone-row">
+          <div class="prefix">+91</div>
+          <input type="tel" id="phone-input" placeholder="9876543210" maxlength="10" inputmode="numeric" />
         </div>
-        <p class="trial-note">✅ 14-day free trial — no credit card needed</p>
-        <!-- ERROR -->
-        <form method="POST" action="/signup" onsubmit="if(typeof gtag==='function')gtag('event','sign_up',{{method:'email'}})">
-            <input type="hidden" name="plan" value="{plan}" />
-            <label>Business Name <span>*</span>
-                <input type="text" name="business_name" placeholder="e.g. Sharma Properties" required />
-            </label>
-            <label>Your Name <span>*</span>
-                <input type="text" name="agent_name" placeholder="e.g. Rahul Sharma" required />
-            </label>
-            <label>Email <span>*</span>
-                <input type="email" name="agent_email" placeholder="you@example.com" required />
-            </label>
-            <label>Phone <span>*</span>
-                <input type="tel" name="agent_phone" placeholder="+91 98765 43210" required />
-            </label>
-            <label>City <span>optional</span>
-                <input type="text" name="city" placeholder="e.g. Delhi, Mumbai, Bangalore" />
-            </label>
-            <button type="submit" class="btn-primary">Continue →</button>
-        </form>
+      </label>
+      <button type="button" class="btn-primary" id="send-btn">Send OTP</button>
     </div>
-</div>
-</body>
-</html>
-"""
-
-
-def _build_step2_html():
-    """Build Step 2 HTML with voice cards from catalog."""
-    voices = get_catalog()
-    cards_html = ""
-    for v in voices:
-        rec = ' <span class="rec-badge">Recommended</span>' if v.get("recommended") else ""
-        cards_html += f"""
-        <label class="voice-card" data-gender="{v['gender']}">
-            <input type="radio" name="voice_id" value="{v['id']}" {'checked' if v.get('recommended') and v['gender'] == 'female' else ''} />
-            <div class="voice-card-inner">
-                <div class="voice-header">
-                    <strong>{v['name']}</strong>{rec}
-                    <span class="gender-tag {'tag-f' if v['gender'] == 'female' else 'tag-m'}">{v['gender'].title()}</span>
-                </div>
-                <div class="voice-meta">{v['accent']} &middot; {v['language']}</div>
-                <div class="voice-desc">{v['description']}</div>
-            </div>
-        </label>
-        """
-
-    return f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Choose Voice — PropBot</title>
-<!-- __GA__ -->
-<style>
-{_SHARED_CSS}
-{_STEP2_CSS}
-</style>
-</head>
-<body>
-<div class="topbar">
-    <a class="topbar-logo" href="/"><span>Prop</span>Bot</a>
-    <a class="topbar-back" href="/">← Back to home</a>
-</div>
-<div class="wizard">
-    <div class="steps">
-        <div class="step done">1 · Business Details</div>
-        <div class="step active">2 · Choose Voice</div>
-        <div class="step">3 · Add Listings</div>
+    <div class="otp-section" id="otp-section">
+      <label>Enter OTP <span>(sent to your mobile)</span>
+        <input type="number" id="otp-input" class="otp-input" placeholder="······" maxlength="6" inputmode="numeric" />
+      </label>
+      <button type="button" class="btn-primary" id="verify-btn">Verify &amp; Continue →</button>
+      <p class="resend-link">Didn't get it? <a id="resend-link">Resend OTP</a></p>
     </div>
-    <div class="card">
-        <h2>Choose your AI assistant's voice</h2>
-        <p class="subtitle">Pick a voice that matches your brand. You can change this later from your dashboard.</p>
-        <form method="POST" action="/signup/step2">
-            <div class="filter-bar">
-                <button type="button" class="filter-btn active" data-filter="all">All voices</button>
-                <button type="button" class="filter-btn" data-filter="female">Female</button>
-                <button type="button" class="filter-btn" data-filter="male">Male</button>
-            </div>
-            <div class="voice-grid">
-                {cards_html}
-            </div>
-            <label class="persona-field">Assistant Name <span>(callers will hear this)</span>
-                <input type="text" name="persona_name" placeholder="e.g. Priya, Ananya, Arjun" value="Priya" />
-            </label>
-            <input type="hidden" name="voice_gender" id="voice_gender" value="female" />
-            <button type="submit" class="btn-primary">Continue →</button>
-        </form>
-    </div>
+  </div>
 </div>
 <script>
-document.querySelectorAll('.filter-btn').forEach(function(btn) {{
-    btn.addEventListener('click', function() {{
-        document.querySelectorAll('.filter-btn').forEach(function(b) {{ b.classList.remove('active'); }});
-        this.classList.add('active');
-        var f = this.dataset.filter;
-        document.querySelectorAll('.voice-card').forEach(function(c) {{
-            c.style.display = (f === 'all' || c.dataset.gender === f) ? '' : 'none';
-        }});
-    }});
+var plan = '{plan}';
+function showMsg(text, isError) {{
+  var el = document.getElementById('msg');
+  el.innerHTML = '<p class="'+(isError?'error':'success-msg')+'">'+text+'</p>';
+}}
+document.getElementById('send-btn').onclick = function() {{
+  var phone = document.getElementById('phone-input').value.trim();
+  if(!phone || phone.length < 10) {{ showMsg('Enter a valid 10-digit mobile number.', true); return; }}
+  var btn = this; btn.disabled = true; btn.textContent = 'Sending…';
+  fetch('/signup/api/send-otp', {{
+    method: 'POST', headers: {{'Content-Type': 'application/json'}},
+    body: JSON.stringify({{phone: phone}})
+  }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
+    if(d.success) {{
+      showMsg('OTP sent to +91 ' + phone, false);
+      document.getElementById('otp-section').classList.add('visible');
+      document.getElementById('otp-input').focus();
+      btn.textContent = 'Resend OTP';
+      btn.disabled = false;
+    }} else {{
+      showMsg(d.message, true);
+      btn.textContent = 'Send OTP';
+      btn.disabled = false;
+    }}
+  }}).catch(function() {{
+    showMsg('Network error. Please try again.', true);
+    btn.textContent = 'Send OTP'; btn.disabled = false;
+  }});
+}};
+document.getElementById('verify-btn').onclick = function() {{
+  var phone = document.getElementById('phone-input').value.trim();
+  var otp = document.getElementById('otp-input').value.trim();
+  if(!otp || otp.length < 6) {{ showMsg('Enter the 6-digit OTP.', true); return; }}
+  var btn = this; btn.disabled = true; btn.textContent = 'Verifying…';
+  fetch('/signup/api/verify-otp', {{
+    method: 'POST', headers: {{'Content-Type': 'application/json'}},
+    body: JSON.stringify({{phone: phone, otp: otp}})
+  }}).then(function(r) {{ return r.json(); }}).then(function(d) {{
+    if(d.success) {{
+      showMsg('Phone verified! Redirecting…', false);
+      window.location.href = '/signup/step2?plan=' + plan;
+    }} else {{
+      showMsg(d.message, true);
+      btn.textContent = 'Verify & Continue →';
+      btn.disabled = false;
+    }}
+  }}).catch(function() {{
+    showMsg('Network error. Please try again.', true);
+    btn.textContent = 'Verify & Continue →'; btn.disabled = false;
+  }});
+}};
+document.getElementById('resend-link').onclick = function() {{
+  document.getElementById('send-btn').click();
+}};
+document.getElementById('otp-input').addEventListener('keydown', function(e) {{
+  if(e.key === 'Enter') document.getElementById('verify-btn').click();
 }});
-document.querySelectorAll('input[name="voice_id"]').forEach(function(r) {{
-    r.addEventListener('change', function() {{
-        var card = this.closest('.voice-card');
-        document.getElementById('voice_gender').value = card.dataset.gender;
-    }});
+document.getElementById('phone-input').addEventListener('keydown', function(e) {{
+  if(e.key === 'Enter') document.getElementById('send-btn').click();
 }});
 </script>
 </body>
@@ -453,64 +429,87 @@ document.querySelectorAll('input[name="voice_id"]').forEach(function(r) {{
 """
 
 
-STEP3_HTML = """<!DOCTYPE html>
+def _build_step2_html(plan: str, fi: dict) -> str:
+    if plan == "starter":
+        if fi["active"]:
+            plan_label = "Starter — ₹1,749/month (30% founder discount)"
+            plan_color = "#059669"
+        else:
+            plan_label = "Starter — ₹2,499/month"
+            plan_color = "#059669"
+        plan_bg = "#ecfdf5"; plan_border = "#6ee7b7"
+    else:
+        if fi["active"]:
+            plan_label = "Pro — ₹3,499/month (30% founder discount)"
+            plan_color = "#2563eb"
+        else:
+            plan_label = "Pro — ₹4,999/month"
+            plan_color = "#2563eb"
+        plan_bg = "#eff6ff"; plan_border = "#93c5fd"
+
+    founder_banner = ""
+    if fi["active"]:
+        founder_banner = f'''
+        <div style="background:linear-gradient(135deg,#fff7ed,#fff3e0);border:1px solid #fed7aa;border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px;color:#92400e;font-weight:600;">
+          🎉 You're getting 30% off as a founding member — locked in forever!
+        </div>'''
+
+    return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Add Listings — PropBot</title>
+<title>Business Details — PropBot</title>
 <!-- __GA__ -->
 <style>
-""" + _SHARED_CSS + """
-textarea { width: 100%; min-height: 280px; padding: 14px; border: 1.5px solid #E5E7EB; border-radius: 10px; font-size: 13px; font-family: 'SF Mono', 'Fira Code', monospace; line-height: 1.65; resize: vertical; background: #FAFAF8; color: #111827; transition: all .15s; }
-textarea:focus { outline: none; border-color: #FF5722; box-shadow: 0 0 0 3px rgba(255,87,34,0.1); background: #fff; }
-.hint-box { background: rgba(255,87,34,0.05); border: 1px solid rgba(255,87,34,0.2); padding: 14px 16px; border-radius: 10px; font-size: 13px; color: #374151; margin-bottom: 16px; line-height: 1.6; }
-.hint-box strong { color: #FF5722; }
-.hint-box code { background: rgba(255,87,34,0.1); color: #E64A19; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
-.skip-link { display: block; text-align: center; margin-top: 12px; font-size: 13px; color: #9CA3AF; }
-.skip-link a { color: #6B7280; text-decoration: underline; }
+{_SHARED_CSS}
+.plan-pill {{ display: inline-flex; align-items: center; gap: 6px; background: {plan_bg}; border: 1px solid {plan_border}; color: {plan_color}; padding: 5px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-bottom: 20px; }}
+.plan-pill a {{ color: {plan_color}; font-size: 12px; margin-left: 4px; opacity: 0.7; text-decoration: underline; }}
+.trial-note {{ font-size: 13px; color: #059669; font-weight: 500; margin-bottom: 16px; }}
+textarea {{ width: 100%; min-height: 200px; padding: 14px; border: 1.5px solid #E5E7EB; border-radius: 10px; font-size: 13px; font-family: 'SF Mono', 'Fira Code', monospace; line-height: 1.65; resize: vertical; background: #FAFAF8; color: #111827; transition: all .15s; margin-top: 5px; }}
+textarea:focus {{ outline: none; border-color: #FF5722; box-shadow: 0 0 0 3px rgba(255,87,34,0.1); background: #fff; }}
+.hint-box {{ background: rgba(255,87,34,0.05); border: 1px solid rgba(255,87,34,0.2); padding: 12px 14px; border-radius: 10px; font-size: 13px; color: #374151; margin-bottom: 12px; line-height: 1.6; }}
+.hint-box strong {{ color: #FF5722; }}
+.section-divider {{ border: none; border-top: 1px solid #E5E7EB; margin: 24px 0; }}
 </style>
 </head>
 <body>
 <div class="topbar">
-    <a class="topbar-logo" href="/"><span>Prop</span>Bot</a>
-    <a class="topbar-back" href="/">← Back to home</a>
+  <a class="topbar-logo" href="/"><span>Prop</span>Bot</a>
+  <a class="topbar-back" href="/">← Back to home</a>
 </div>
 <div class="wizard">
-    <div class="steps">
-        <div class="step done">1 · Business Details</div>
-        <div class="step done">2 · Choose Voice</div>
-        <div class="step active">3 · Add Listings</div>
-    </div>
-    <div class="card">
-        <h2>Add your property listings</h2>
-        <p class="subtitle">Your AI assistant will use this to answer buyer questions. You can edit this anytime from your dashboard.</p>
-        <!-- ERROR -->
-        <div class="hint-box">
-            <strong>Tip:</strong> Use <code>##</code> for each property name, then add details on separate lines. The more detail you add, the better your AI answers buyer questions.
-        </div>
-        <form method="POST" action="/signup/step3" onsubmit="if(typeof gtag==='function')gtag('event','onboarding_complete')">
-            <textarea name="knowledge_base" placeholder="## Green Valley Apartments, Sector 150 Noida
-- Type: 2BHK, 3BHK
-- Price: 55 lakh - 85 lakh
-- Possession: June 2026
-- Features: Swimming pool, gym, 24/7 security, metro nearby
-- Area: 950 sq ft - 1400 sq ft
-
-## Royal Heights, Sector 56 Gurgaon
-- Type: 3BHK, 4BHK
-- Price: 1.2 crore - 1.8 crore
-- Possession: Ready to move
-- Features: Golf course road, imported marble, modular kitchen
-- Area: 1800 sq ft - 2400 sq ft
-
-## FAQ
-Q: Do you help with home loans?
-A: Yes, we help with home loan processing through partner banks."></textarea>
-            <button type="submit" class="btn-primary">Launch My AI Receptionist 🚀</button>
-        </form>
-        <p class="skip-link">Not ready? <a href="/dashboard">Skip and add listings later from dashboard</a></p>
-    </div>
+  <div class="steps">
+    <div class="step done">1 · Verify Phone</div>
+    <div class="step active">2 · Business Details</div>
+  </div>
+  <div class="card">
+    <h2>Set up your account</h2>
+    <div class="plan-pill">✓ {plan_label}<a href="/pricing">change</a></div>
+    <p class="trial-note">✅ 14-day free trial — no credit card needed</p>
+    {founder_banner}
+    <!-- ERROR -->
+    <form method="POST" action="/signup/step2" onsubmit="if(typeof gtag==='function')gtag('event','sign_up',{{method:'phone'}})">
+      <input type="hidden" name="plan" value="{plan}" />
+      <label>Business Name <span>*</span>
+        <input type="text" name="business_name" placeholder="e.g. Sharma Properties" required />
+      </label>
+      <label>Your Name <span>*</span>
+        <input type="text" name="agent_name" placeholder="e.g. Rahul Sharma" required />
+      </label>
+      <label>Email <span>*</span>
+        <input type="email" name="agent_email" placeholder="you@example.com" required />
+      </label>
+      <label>City <span>optional</span>
+        <input type="text" name="city" placeholder="e.g. Delhi, Mumbai, Bangalore" />
+      </label>
+      <hr class="section-divider" />
+      <label>Property Listings <span>optional — add later from dashboard</span></label>
+      <div class="hint-box"><strong>Tip:</strong> Use <code>##</code> for each property name. The more detail you add, the better your AI answers buyer questions.</div>
+      <textarea name="knowledge_base" placeholder="## Green Valley Apartments, Sector 150 Noida&#10;- Type: 2BHK, 3BHK&#10;- Price: 55 lakh - 85 lakh&#10;- Possession: June 2026&#10;- Features: Swimming pool, gym, 24/7 security&#10;&#10;## Royal Heights, Sector 56 Gurgaon&#10;- Type: 3BHK, 4BHK&#10;- Price: 1.2 crore - 1.8 crore"></textarea>
+      <button type="submit" class="btn-primary">Launch My AI Receptionist 🚀</button>
+    </form>
+  </div>
 </div>
 </body>
 </html>
