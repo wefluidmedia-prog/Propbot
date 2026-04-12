@@ -37,6 +37,15 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_REDIRECT_URI: str = ""
 
+    # Vobiz telephony
+    VOBIZ_AUTH_ID: str = ""
+    VOBIZ_AUTH_TOKEN: str = ""
+    VOBIZ_API_URL: str = "https://api.vobiz.ai/api/v1"
+
+    # MSG91 OTP
+    MSG91_AUTH_KEY: str = ""
+    MSG91_TEMPLATE_ID: str = ""
+
     # App
     BASE_URL: str = "https://propbot.onrender.com"
     WEBHOOK_SECRET: str = ""

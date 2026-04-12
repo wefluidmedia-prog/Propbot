@@ -367,9 +367,9 @@ async def get_usage(client_id: str = Depends(_get_client_id)):
     voice_leads = sum(1 for l in leads_this_month if l.get("source") == "voice")
     chat_leads = sum(1 for l in leads_this_month if l.get("source") in ("chat", "callback"))
 
-    client_row = (db.table("clients").select("plan_type, calls_limit").eq("id", client_id).single().execute().data or {})
+    client_row = (db.table("clients").select("plan_type").eq("id", client_id).single().execute().data or {})
     plan_type = client_row.get("plan_type", "starter")
-    calls_limit = client_row.get("calls_limit")
+    calls_limit = 50 if plan_type == "starter" else None
 
     return {
         "month": now.strftime("%B %Y"),
@@ -377,6 +377,7 @@ async def get_usage(client_id: str = Depends(_get_client_id)):
         "total_calls": len(all_calls),
         "minutes_this_month": minutes_month,
         "total_minutes": round(total_seconds_all / 60, 1),
+        "estimated_cost_inr": estimated_cost_inr,
         "plan_type": plan_type,
         "calls_limit": calls_limit,
         "voice_leads_month": voice_leads,
@@ -923,7 +924,7 @@ function renderCalls(){
     var rows = calls.map(function(call, idx){
       var dur = call.duration_seconds ? Math.round(call.duration_seconds/60)+'m '+((call.duration_seconds%60))+'s' : '—';
       var trans = call.transcript ? esc(call.transcript).substring(0,300)+(call.transcript.length>300?'…':'') : '<em style="color:#94a3b8">No transcript</em>';
-      var recLink = call.recording_url ? '<a class="recording-link" href="'+esc(call.recording_url)+'" target="_blank">▶ Recording</a>' : '';
+      var recLink = call.recording_url ? '<a class="recording-link" href="'+esc(call.recording_url)+'" target="_blank">▶ Recording</a>' : '<span style="font-size:12px;color:#94a3b8;">No recording</span>';
       var endReason = call.ended_reason ? '<span class="badge" style="background:#f1f5f9;color:#64748b;margin-left:8px">'+esc(call.ended_reason)+'</span>' : '';
       return '<tr class="call-row">' +
         '<td style="width:140px">' +
@@ -1024,15 +1025,18 @@ function renderUsage(){
       '<div class="usage-grid">' +
         usageCard('Calls This Month', u.calls_this_month, 'total calls', '') +
         usageCard('Minutes Used', u.minutes_this_month+'m', 'of talk time', '') +
-        usageCard('Voice Leads', u.voice_leads_month, 'captured this month', '') +
+        usageCard('Est. Cost', '₹'+(u.estimated_cost_inr||0), 'this month', '') +
       '</div>' +
       '<div class="stats-grid" style="margin-bottom:24px">' +
+        statCard('Voice Leads', u.voice_leads_month, '', 'this month') +
         statCard('Chat Leads', u.chat_leads_month, 'purple', 'this month') +
         statCard('Total Calls Ever', u.total_calls, '', '') +
         statCard('Total Minutes', u.total_minutes+'m', '', 'all time') +
-        statCard('Plan', u.plan_type ? u.plan_type.charAt(0).toUpperCase()+u.plan_type.slice(1) : 'Trial', 'blue', '') +
       '</div>' +
       '<div class="cost-note">' + planNote + '</div>';
+  }).catch(function(){
+    document.getElementById('content').innerHTML =
+      '<div class="empty"><div class="e-icon">📊</div><h3>Usage unavailable</h3><p>Could not load usage data. Please try again.</p></div>';
   });
 }
 
@@ -1073,6 +1077,19 @@ function renderAssistant(){
         '</div>' +
       '</div>' +
     '</div>';
+
+  // Auto-update greeting when assistant name changes
+  var origName = assistantName;
+  document.getElementById('assistant-name').addEventListener('input', function(){
+    var newName = this.value.trim();
+    if(newName && newName !== origName){
+      var msgEl = document.getElementById('first-msg');
+      if(msgEl.value.indexOf(origName) !== -1){
+        msgEl.value = msgEl.value.split(origName).join(newName);
+      }
+      origName = newName;
+    }
+  });
 
   document.getElementById('save-assistant-btn').addEventListener('click', function(){
     var btn = this;

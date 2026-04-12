@@ -197,6 +197,13 @@ async def update_voice_agent(client_id: str) -> None:
         f"Namaste! {client['business_name']} mein aapka swagat hai. "
         f"Main {persona} bol rahi hoon. Boliye, kaise madad kar sakti hoon?"
     )
+    # If greeting contains a different persona name (e.g. user changed name
+    # but greeting wasn't updated), replace with current persona
+    if first_message and persona:
+        for old in ("Priya", "Ananya", "Meera", "Arjun", "Rohan", "Vikram"):
+            if old != persona and f"Main {old}" in first_message:
+                first_message = first_message.replace(old, persona)
+                break
 
     config = AgentConfig(
         agent_name=f"{persona} - {client['business_name']}",

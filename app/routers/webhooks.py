@@ -126,24 +126,50 @@ async def voice_webhook(request: Request):
         return await _handle_tool_calls(engine, event)
 
     if event.event_type == "call_ended":
-        logger.info("call_ended raw payload keys: %s", list(payload.keys()))
-        # If webhook didn't include recording/transcript, fetch from Bolna API
-        if not event.recording_url or not event.transcript:
+        logger.info(
+            "call_ended raw payload keys: %s | recording_url: %s",
+            list(payload.keys()),
+            payload.get("recording_url") or payload.get("recording"),
+        )
+        # Try Bolna API for transcript if missing
+        if not event.transcript:
             try:
                 details = await engine.get_call_details(event.call_id)
                 if details:
-                    event.recording_url = event.recording_url or details.get("recording_url")
                     event.transcript = event.transcript or details.get("transcript")
             except Exception as e:
                 logger.warning("Could not fetch call details from Bolna: %s", e)
+        conv_id = None
         try:
-            await store_conversation(event)
+            conv_id = await store_conversation(event)
         except Exception as e:
             logger.error(f"Failed to store conversation: {e}")
+        # Fetch recording from Vobiz in background (Bolna doesn't forward URLs)
+        if conv_id and not event.recording_url:
+            import asyncio
+            asyncio.create_task(_fetch_vobiz_recording(conv_id, event.call_id))
         return Response(status_code=200)
 
     # Acknowledge all other events
     return Response(status_code=200)
+
+
+async def _fetch_vobiz_recording(conv_id: str, call_id: str) -> None:
+    """Background task: wait briefly then fetch recording URL from Vobiz and update DB."""
+    import asyncio
+    await asyncio.sleep(8)  # Vobiz needs time to process the recording after call ends
+    try:
+        from app.services.vobiz_service import get_call_recording
+        from app.db.supabase_client import get_supabase
+        rec_url = await get_call_recording(call_id)
+        if rec_url:
+            db = get_supabase()
+            db.table("conversations").update({"recording_url": rec_url}).eq("id", conv_id).execute()
+            logger.info("Vobiz recording saved for conv %s: %s", conv_id, rec_url)
+        else:
+            logger.debug("No Vobiz recording found for call_id=%s", call_id)
+    except Exception as e:
+        logger.warning("_fetch_vobiz_recording failed for conv %s: %s", conv_id, e)
 
 
 async def _handle_tool_calls(engine, event) -> dict:
