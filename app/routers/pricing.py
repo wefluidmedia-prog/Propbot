@@ -1,14 +1,11 @@
 """
 Pricing page — /pricing
 
-Standalone page showing Starter and Pro plans.
-CTAs redirect to /signup?plan=starter or /signup?plan=pro.
+Redirects to the pricing section of the landing page.
 """
 
 from fastapi import APIRouter
-from fastapi.responses import HTMLResponse
-
-from app.config import settings
+from fastapi.responses import RedirectResponse
 
 router = APIRouter()
 
@@ -240,15 +237,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 """
 
 
-@router.get("", response_class=HTMLResponse)
-@router.get("/", response_class=HTMLResponse)
+@router.get("")
+@router.get("/")
 async def pricing_page():
-    gid = settings.GA_MEASUREMENT_ID
-    ga = ""
-    if gid:
-        ga = (
-            f'<script async src="https://www.googletagmanager.com/gtag/js?id={gid}"></script>\n'
-            f"<script>window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments);}}"
-            f"gtag('js',new Date());gtag('config','{gid}');</script>\n"
-        )
-    return HTMLResponse(_PRICING_HTML.replace("<!-- __GA__ -->", ga))
+    return RedirectResponse("/#pricing", status_code=301)

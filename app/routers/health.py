@@ -36,23 +36,53 @@ def _og_tags() -> str:
 @router.get("/", response_class=HTMLResponse)
 async def root():
     """Landing page — marketing site."""
+    from app.db.supabase_client import get_supabase
     html = LANDING_HTML.replace("<!-- __GA__ -->", _ga_snippet())
     html = html.replace("<!-- __OG__ -->", _og_tags())
 
-    # Founders banner (only if FOUNDERS_SLOTS is set)
-    slots = settings.FOUNDERS_SLOTS
-    if slots:
+    # Founders banner + dynamic pricing
+    slots_total = 0
+    try:
+        slots_total = int(settings.FOUNDERS_SLOTS or 0)
+    except ValueError:
+        pass
+
+    founder_active = False
+    slots_remaining = 0
+    if slots_total > 0:
+        try:
+            db = get_supabase()
+            result = db.table("clients").select("id", count="exact").eq("is_founder", True).execute()
+            used = result.count or 0
+        except Exception:
+            used = 0
+        slots_remaining = max(0, slots_total - used)
+        founder_active = slots_remaining > 0
+
+    if founder_active:
         founders_html = (
             '<div class="founders-banner"><div class="fb-inner">'
             '<span class="fb-badge">LAUNCH OFFER</span>'
-            '<span class="fb-text">First 10 Founders get <strong class="fb-price">30% off for life</strong> '
+            '<span class="fb-text">First Founders get <strong class="fb-price">30% off for life</strong> '
             '&mdash; Starter at <strong>&#8377;1,749/mo</strong>, Pro at <strong>&#8377;3,499/mo</strong></span>'
-            f'<span class="fb-slots">Only {slots} spots left</span>'
+            f'<span class="fb-slots">Only {slots_remaining} spots left</span>'
             '</div></div>'
         )
+        starter_price = '<span style="font-size:14px;color:#6B7280;text-decoration:line-through">&#8377;2,499</span> <span class="cur">&#8377;</span>1,749<span class="per">/mo</span>'
+        pro_price = '<span style="font-size:14px;color:#6B7280;text-decoration:line-through">&#8377;4,999</span> <span class="cur">&#8377;</span>3,499<span class="per">/mo</span>'
+    elif slots_total > 0:
+        # All founder slots filled
+        founders_html = ""
+        starter_price = '<span class="cur">&#8377;</span>2,499<span class="per">/mo</span>'
+        pro_price = '<span class="cur">&#8377;</span>4,999<span class="per">/mo</span>'
     else:
         founders_html = ""
+        starter_price = '<span class="cur">&#8377;</span>2,499<span class="per">/mo</span>'
+        pro_price = '<span class="cur">&#8377;</span>4,999<span class="per">/mo</span>'
+
     html = html.replace("<!-- __FOUNDERS_BANNER__ -->", founders_html)
+    html = html.replace("<!-- __STARTER_PRICE__ -->", starter_price)
+    html = html.replace("<!-- __PRO_PRICE__ -->", pro_price)
 
     # WhatsApp floating button + footer link (only if configured)
     wa = settings.WHATSAPP_NUMBER
@@ -695,142 +725,6 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
 <!-- __FOUNDERS_BANNER__ -->
 
 
-<!-- VIDEO DEMO -->
-<section class="video-demo-section" id="video-demo">
-<div class="video-demo-inner">
-  <div class="video-demo-hdr">
-    <div class="sec-label">Watch It Live</div>
-    <h2 class="sec-h2">See PropBot Handle a Real Lead Call</h2>
-    <p class="sec-sub" style="margin:0 auto;">A buyer called at 11 PM. Broker was asleep. PropBot answered in Hindi, qualified the lead, and booked a site visit &mdash; all before morning.</p>
-  </div>
-  <!-- ═══════════════════════════════════════════════════════════════
-       TO ADD YOUR VIDEO:
-       Option A (YouTube): Replace VIDEO_ID below with your YouTube video ID
-                           e.g. for https://youtu.be/dQw4w9WgXcQ → VIDEO_ID = dQw4w9WgXcQ
-       Option B (Direct):  Replace the entire <iframe> with:
-                           <video controls style="width:100%;border-radius:16px;" src="YOUR_VIDEO_URL.mp4"></video>
-       ═══════════════════════════════════════════════════════════════ -->
-  <div class="video-wrap">
-    <iframe
-      id="demo-video-frame"
-      class="video-frame"
-      src="https://www.youtube.com/embed/VIDEO_ID?rel=0&modestbranding=1"
-      title="PropBot Live Call Demo"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      allowfullscreen>
-    </iframe>
-  </div>
-  <p class="video-caption">&#128222; Real call &nbsp;&middot;&nbsp; Real buyer &nbsp;&middot;&nbsp; Real Hindi conversation &nbsp;&middot;&nbsp; Lead captured automatically</p>
-  <div class="video-stats">
-    <div class="ds-card">
-      <div class="ds-num">&lt;1<span class="u">s</span></div>
-      <div class="ds-lbl">Response time on every call</div>
-    </div>
-    <div class="ds-card">
-      <div class="ds-num">24<span class="u">/7</span></div>
-      <div class="ds-lbl">Zero downtime, zero sick days</div>
-    </div>
-    <div class="ds-card">
-      <div class="ds-num">100<span class="u">%</span></div>
-      <div class="ds-lbl">Calls answered, zero missed</div>
-    </div>
-    <div class="ds-card">
-      <div class="ds-num">5<span class="u">min</span></div>
-      <div class="ds-lbl">From signup to live</div>
-    </div>
-  </div>
-</div>
-</section>
-
-<!-- PAIN STATS -->
-<section class="pain">
-<div class="pain-inner">
-  <h2>Jo Aap Miss Kar Rahe Hain</h2>
-  <p class="pain-sub">Ek missed call matlab ek missed deal. Numbers bolte hain.</p>
-  <div class="pain-grid">
-    <div class="pc">
-      <div class="pn red">&#8377;15&ndash;25K</div>
-      <div class="pl">Monthly salary you pay a human receptionist &mdash; who takes sick days, leaves, and misses calls after 6 PM anyway</div>
-    </div>
-    <div class="pc">
-      <div class="pn yellow">40%</div>
-      <div class="pl">Calls missed after 6 PM and on weekends &mdash; the exact time serious buyers are searching online</div>
-    </div>
-    <div class="pc">
-      <div class="pn blue">0</div>
-      <div class="pl">Leads captured at 2 AM by a human receptionist. PropBot catches every single one.</div>
-    </div>
-  </div>
-</div>
-</section>
-
-<!-- COMPARE -->
-<section class="compare" id="compare">
-<div class="compare-inner">
-  <div class="compare-hdr">
-    <div class="sec-label">The Real Comparison</div>
-    <h2 class="sec-h2">Why Smart Agents Are Switching to AI</h2>
-  </div>
-  <table class="ct-table">
-    <thead>
-      <tr>
-        <th></th>
-        <th>Human Receptionist</th>
-        <th>PropBot AI &#10003;</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr><td>Monthly Cost</td><td class="td-bad">&#8377;15,000 &ndash; &#8377;25,000</td><td class="td-good">&#8377;2,499 &ndash; &#8377;4,999</td></tr>
-      <tr><td>Availability</td><td class="td-bad">9 AM &ndash; 6 PM, Mon&ndash;Sat</td><td class="td-good">24/7/365. Never sick.</td></tr>
-      <tr><td>Languages</td><td>1&ndash;2 languages only</td><td class="td-good">Hindi, English, Hinglish</td></tr>
-      <tr><td>Response Time</td><td class="td-bad">Depends on mood</td><td class="td-good">Under 1 second. Every time.</td></tr>
-      <tr><td>Lead Capture</td><td class="td-bad">Pen &amp; paper / forgets</td><td class="td-good">Auto-captured + instant email</td></tr>
-      <tr><td>Call Recording</td><td class="td-bad">Not possible</td><td class="td-good">Every call recorded + transcribed</td></tr>
-      <tr><td>Site Visit Booking</td><td class="td-bad">Manual back-and-forth</td><td class="td-good">Books into Google Calendar live</td></tr>
-      <tr><td>Simultaneous Calls</td><td class="td-bad">1 call at a time</td><td class="td-good">Unlimited, simultaneously</td></tr>
-      <tr><td>Setup Time</td><td class="td-bad">2&ndash;4 weeks training</td><td class="td-good">5 minutes. You&rsquo;re live.</td></tr>
-      <tr><td>Sick Days / Leaves</td><td class="td-bad">15&ndash;20 days/year absent</td><td class="td-good">Zero. Ever.</td></tr>
-      <tr><td>Outbound Follow-Up Calls</td><td class="td-bad">Manual / forgets</td><td style="background:#F5F3FF;color:#6D28D9;font-weight:600;font-size:13px;">&#9670; Coming Soon</td></tr>
-    </tbody>
-  </table>
-  <div class="compare-callout">
-    <strong>Save &#8377;1,20,000 &ndash; &#8377;2,40,000 per year</strong>
-    <p>Aur koi chutti bhi nahi mangega. Kabhi nahi.</p>
-  </div>
-</div>
-</section>
-
-<!-- FEATURES -->
-<section class="features" id="features">
-<div class="features-inner">
-  <div class="feat-hdr">
-    <div class="sec-label">Everything Included</div>
-    <h2 class="sec-h2">Your Complete AI Receptionist Stack</h2>
-  </div>
-  <div class="feat-grid">
-    <div class="fc"><div class="fic fi-o">&#128222;</div><h3>AI Voice Calls</h3><p>Natural Hindi and English conversations with natural Indian voices. Callers won&rsquo;t know it&rsquo;s AI &mdash; sounds like a real, warm team member.</p></div>
-    <div class="fc"><div class="fic fi-g">&#128172;</div><h3>Website Chat Widget</h3><p>Embed on your property website in 2 minutes. Answers listing questions, captures phone numbers, qualifies visitors automatically.</p></div>
-    <div class="fc"><div class="fic fi-b">&#127919;</div><h3>Auto Lead Capture</h3><p>Name, phone, budget, area preference &mdash; all captured the moment they call. Instant email alert. Nothing falls through the cracks.</p></div>
-    <div class="fc"><div class="fic fi-p">&#128197;</div><h3>Google Calendar Booking</h3><p>PropBot books site visits live on the call, straight into your Google Calendar. Confirms with the caller on the spot. Zero back-and-forth.</p></div>
-    <div class="fc"><div class="fic fi-pk">&#128200;</div><h3>Dashboard &amp; Analytics</h3><p>All leads, call recordings, and transcripts in one clean dashboard. Know exactly what every buyer asked, their budget, and timeline.</p></div>
-    <div class="fc"><div class="fic fi-t">&#9889;</div><h3>Instant Alerts</h3><p>Get notified the moment a qualified lead comes in &mdash; by email. Hot buyers never wait. You never miss a deal again.</p></div>
-  </div>
-</div>
-</section>
-
-<!-- SOCIAL PROOF -->
-<section class="social-proof">
-<div class="sp-inner">
-  <div class="sec-label">Built for India</div>
-  <h2 class="sec-h2">Why Indian Real Estate Agents Choose PropBot</h2>
-  <div class="sp-cards">
-    <div class="sp-card"><div class="sp-icon">&#127470;&#127475;</div><h3>Hindi + English + Hinglish</h3><p>Your AI speaks the way your clients do. Fluent in Hindi, English, and natural Hinglish &mdash; so every caller feels at home.</p></div>
-    <div class="sp-card"><div class="sp-icon">&#127968;</div><h3>Made for Indian Real Estate</h3><p>Understands BHK, carpet area, RERA, possession dates, and how Indian buyers actually talk about property. Not a generic chatbot.</p></div>
-    <div class="sp-card"><div class="sp-icon">&#128176;</div><h3>Save &#8377;1.5L+ Per Year</h3><p>Replace a full-time receptionist for a fraction of the cost. Works 24/7 including Sundays and holidays. Never takes leave.</p></div>
-  </div>
-</div>
-</section>
-
 <!-- HOW IT WORKS -->
 <section class="how" id="how">
 <div class="how-inner">
@@ -862,7 +756,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
     <div class="price-card">
       <div class="pname">Starter</div>
       <div class="pdesc">For solo brokers starting with AI</div>
-      <div class="pamt"><span class="cur">&#8377;</span>2,499<span class="per">/mo</span></div>
+      <div class="pamt"><!-- __STARTER_PRICE__ --></div>
       <div class="ptrial">14-day free trial</div>
       <ul class="pfeats">
         <li><span class="ck">&#10003;</span> AI voice receptionist (Priya)</li>
@@ -880,7 +774,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
       <div class="pop-badge">MOST POPULAR</div>
       <div class="pname">Pro</div>
       <div class="pdesc">For serious brokers who can&rsquo;t miss a lead</div>
-      <div class="pamt"><span class="cur">&#8377;</span>4,999<span class="per">/mo</span></div>
+      <div class="pamt"><!-- __PRO_PRICE__ --></div>
       <div class="ptrial">14-day free trial</div>
       <ul class="pfeats">
         <li><span class="ck">&#10003;</span> AI voice receptionist (your choice)</li>
@@ -928,16 +822,6 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
 </div>
 </section>
 
-<!-- FINAL CTA -->
-<section class="final-cta">
-<div class="final-cta-inner">
-  <h2>Your Competitors Are Going AI.<br>Don&rsquo;t Get Left Behind.</h2>
-  <p>Every missed call is a missed deal. Every missed deal is lakhs lost. Start your free trial today &mdash; no credit card, no risk, cancel anytime.</p>
-  <a href="/signup?plan=pro" class="btn-final">Start My Free Trial &rarr;</a>
-  <div class="final-sub">Already have an account? <a href="/dashboard">Login to Dashboard</a></div>
-</div>
-</section>
-
 <!-- CONTACT FORM -->
 <section class="contact-section" id="contact">
 <div class="contact-inner">
@@ -974,10 +858,9 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
   </div>
   <div class="fcol">
     <h4>Product</h4>
-    <a href="#video-demo">Live Demo</a>
-    <a href="#features">Features</a>
-    <a href="#pricing">Pricing</a>
     <a href="#how">How It Works</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#faq">FAQ</a>
   </div>
   <div class="fcol">
     <h4>Account</h4>
