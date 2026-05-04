@@ -865,7 +865,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
   <div class="fcol">
     <h4>Account</h4>
     <a href="https://cal.com/atharva-realestate/real-estate-ai-demo" target="_blank">Book AI Demo</a>
-    <a href="/dashboard">Login to Dashboard</a>
+    
     <a href="#faq">FAQ</a>
   </div>
   <div class="fcol">
