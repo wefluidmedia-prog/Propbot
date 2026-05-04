@@ -650,7 +650,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
     <a href="#pricing">Pricing</a>
     <a href="#faq">FAQ</a>
     <a href="#contact">Contact</a>
-    <a href="/dashboard">Login</a>
+    
     <a href="https://cal.com/atharva-realestate/real-estate-ai-demo" target="_blank" class="btn-nav">Book AI Demo &rarr;</a>
   </div>
 </div>
@@ -870,7 +870,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;color:var(-
   </div>
   <div class="fcol">
     <h4>Contact</h4>
-    <a href="mailto:daanzack8@gmail.com">daanzack8@gmail.com</a>
+    <a href="mailto:admin@propbot.co.in">admin@propbot.co.in</a>
     <!-- __WHATSAPP_FOOTER__ -->
     <a href="#contact">Send a Message</a>
   </div>
