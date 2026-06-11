@@ -1,7 +1,7 @@
 # PropBot — Claude Code Instructions
 
 ## Stack
-FastAPI + Supabase (PostgreSQL) + Bolna.ai (voice) + Vobiz (telephony) + Claude Sonnet 4 + Render (hosting)
+FastAPI + Supabase (PostgreSQL) + Bolna.ai (voice) + Vobiz (telephony) + Claude Sonnet 4 + AWS Lightsail (hosting)
 
 ## Environment
 - OS: Windows 11 with OneDrive active
@@ -27,22 +27,26 @@ FastAPI + Supabase (PostgreSQL) + Bolna.ai (voice) + Vobiz (telephony) + Claude 
 - Commit after each completed phase, not at the end of everything
 - Use descriptive commit messages referencing the feature (e.g. "Add Razorpay subscription webhook handler")
 - Never force push to main
-- Always push to origin after committing — Render auto-deploys on push to main
+- Push to origin after committing (deploy is manual — see Deployment section)
 
-## Deployment (Render)
-- Plan: Render Starter (paid) — always-on, no cold starts, no self-ping needed
-- Live URL: https://propbot.co.in (custom domain, purchased)
-- Render subdomain: https://propbot-3wrp.onrender.com — DISABLED (custom domain only)
-- Auto-deploys on push to main branch
+## Deployment (AWS Lightsail)
+- Plan: Lightsail Container Nano ($7/mo, covered by $1000 AWS credits)
+- Region: ap-south-1 (Mumbai)
+- Live URL: https://propbot.co.in (custom domain, GoDaddy DNS)
+- Lightsail URL: https://propbot.s3dncr7k1n8ym.ap-south-1.cs.amazonlightsail.com/
+- Docker image: ECR 117237936168.dkr.ecr.ap-south-1.amazonaws.com/propbot:latest
+- CodeBuild project: propbot-build (region ap-south-1)
 - Health check: `curl https://propbot.co.in/health`
-- Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Start command (in Dockerfile): `uvicorn app.main:app --host 0.0.0.0 --port 8080`
 - Local dev: `uvicorn app.main:app --reload`
+- To redeploy: `aws codebuild start-build --project-name propbot-build --region ap-south-1` then update Lightsail deployment
+- GitHub repo is PUBLIC (wefluidmedia-prog/Propbot)
 
 ## Testing
 - Run tests: `python -m pytest tests/ -v`
 - Always run tests before pushing to main
 - 2 pre-existing test failures in test_webhook_handler.py (auth-related, not our bugs) — ignore these
-- After pushing, wait ~2 min for Render to deploy, then curl https://propbot.co.in/health to confirm
+- After deploying, curl https://propbot.co.in/health to confirm
 
 ## Key Files
 - Entry point: `app/main.py`
