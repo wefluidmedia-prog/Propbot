@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  pipecat-worker:
+    build: .
+    container_name: propbot-pipecat
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1

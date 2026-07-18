@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PropBot Voice Settings Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --glass-bg: rgba(255, 255, 255, 0.03);
+            --glass-border: rgba(255, 255, 255, 0.05);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #60a5fa;
+            --danger: #ef4444;
+            --danger-hover: #f87171;
+            --success: #10b981;
+            --warn: #f59e0b;
+        }
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at top left, #1e1b4b, var(--bg-color));
+            color: var(--text-main);
+            margin: 0; padding: 2rem;
+            min-height: 100vh;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 2rem; padding-bottom: 1rem;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        h1 {
+            font-weight: 700; margin: 0;
+            background: linear-gradient(to right, #60a5fa, #c084fc);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .status-badge {
+            padding: 0.5rem 1rem; border-radius: 2rem; font-size: 0.875rem; font-weight: 600;
+            background: rgba(16,185,129,0.1); color: var(--success);
+            border: 1px solid rgba(16,185,129,0.2); transition: all 0.3s;
+        }
+        .status-badge.stopped {
+            background: rgba(239,68,68,0.1); color: var(--danger);
+            border: 1px solid rgba(239,68,68,0.2);
+        }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; }
+        .card {
+            background: var(--glass-bg); backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border); border-radius: 1rem;
+            padding: 1.5rem; box-shadow: 0 4px 30px rgba(0,0,0,0.1);
+        }
+        h2 { font-size: 1.1rem; margin-top: 0; margin-bottom: 1.25rem; color: var(--accent); }
+        .form-group { margin-bottom: 1.1rem; }
+        label { display: block; margin-bottom: 0.4rem; font-weight: 600; font-size: 0.85rem; }
+        .hint { display: block; font-size: 0.72rem; color: var(--text-muted); margin-top: 0.2rem; }
+        input[type="text"], select {
+            width: 100%; padding: 0.6rem 0.75rem; background: rgba(0,0,0,0.2);
+            border: 1px solid var(--glass-border); border-radius: 0.5rem;
+            color: var(--text-main); font-family: inherit; box-sizing: border-box;
+            outline: none; transition: border-color 0.3s;
+        }
+        input[type="text"]:focus, select:focus { border-color: var(--accent); }
+        .range-container { display: flex; align-items: center; gap: 0.75rem; }
+        input[type="range"] { flex: 1; accent-color: var(--accent); }
+        .range-value {
+            font-family: 'JetBrains Mono', monospace; background: rgba(0,0,0,0.3);
+            padding: 0.2rem 0.45rem; border-radius: 0.25rem; min-width: 3.5ch; text-align: center;
+            font-size: 0.85rem;
+        }
+        .checkbox-label {
+            display: flex; align-items: center; gap: 0.5rem; font-weight: 400; cursor: pointer;
+        }
+        .checkbox-label input { accent-color: var(--accent); width: 1.1rem; height: 1.1rem; cursor: pointer; }
+        .actions { margin-top: 1.5rem; display: flex; gap: 1rem; justify-content: center; }
+        button {
+            padding: 0.9rem 2.5rem; font-size: 1rem; font-weight: 600; font-family: inherit;
+            border: none; border-radius: 0.5rem; cursor: pointer; transition: all 0.3s;
+        }
+        button.start {
+            background: var(--accent); color: white;
+            box-shadow: 0 0 20px rgba(59,130,246,0.4);
+        }
+        button.start:hover { background: var(--accent-hover); transform: translateY(-2px); }
+        button.stop { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+        button.stop:hover { background: rgba(239,68,68,0.1); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+
+        /* Quick profiles */
+        .profiles { margin-bottom: 1.5rem; }
+        .profile-btn {
+            padding: 0.45rem 1rem; font-size: 0.8rem; border-radius: 2rem;
+            border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05);
+            color: var(--text-main); cursor: pointer; font-family: inherit; font-weight: 600;
+            transition: all 0.2s;
+        }
+        .profile-btn:hover { background: rgba(255,255,255,0.12); transform: translateY(-1px); }
+        .profiles-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+        /* Cost/latency panel */
+        .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+        .metric-box {
+            background: rgba(0,0,0,0.25); border: 1px solid var(--glass-border);
+            border-radius: 0.6rem; padding: 0.75rem; text-align: center;
+        }
+        .metric-box .label { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.3rem; }
+        .metric-box .value {
+            font-family: 'JetBrains Mono', monospace; font-size: 1.1rem; font-weight: 600;
+        }
+        .metric-box .value.green { color: #34d399; }
+        .metric-box .value.yellow { color: #fbbf24; }
+        .metric-box .value.red { color: #f87171; }
+        .cost-note { font-size: 0.7rem; color: var(--text-muted); margin-top: 0.75rem; }
+
+        /* Log */
+        #logConsole {
+            background: rgba(0,0,0,0.4); border: 1px solid var(--glass-border);
+            border-radius: 0.5rem; padding: 0.75rem; height: 220px; overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
+            color: #a5f3fc; white-space: pre-wrap; word-break: break-all;
+        }
+        #logConsole .log-error { color: #fca5a5; }
+        #logConsole .log-warn  { color: #fde68a; }
+        #logConsole .log-info  { color: #a5f3fc; }
+        #logConsole .log-debug { color: #94a3b8; }
+        hr { border-color: var(--glass-border); margin: 1.25rem 0; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>Voice Settings Dashboard</h1>
+        <div id="statusIndicator" class="status-badge stopped">● STOPPED</div>
+    </header>
+
+    <!-- Quick Profiles -->
+    <div class="card profiles">
+        <h2>⚡ Quick Profiles</h2>
+        <div class="profiles-row">
+            <button class="profile-btn" onclick="applyProfile('natural_hindi')">Natural Hindi (default)</button>
+            <button class="profile-btn" onclick="applyProfile('fast_sales')" style="border-color:#7c3aed;color:#c4b5fd;">Fast Sales</button>
+            <button class="profile-btn" onclick="applyProfile('calm_support')" style="border-color:#0e7490;color:#67e8f9;">Calm Support</button>
+            <button class="profile-btn" onclick="applyProfile('expressive_v3')" style="border-color:#065f46;color:#6ee7b7;">Expressive v3</button>
+            <button class="profile-btn" onclick="applyProfile('v2_anushka')" style="border-color:#92400e;color:#fcd34d;">v2 Anushka</button>
+            <button class="profile-btn" onclick="applyProfile('low_vad')" style="border-color:#1e3a5f;color:#93c5fd;">Low VAD (wired)</button>
+            <button class="profile-btn" onclick="applyProfile('high_vad')" style="border-color:#4c1d95;color:#c4b5fd;">High VAD (noisy)</button>
+            <button class="profile-btn" onclick="applyProfile('cheap_bedrock')" style="border-color:#134e4a;color:#5eead4;">Cheap (Bedrock Haiku)</button>
+            <button class="profile-btn" onclick="applyProfile('fastest_india')" style="border-color:#f59e0b;color:#fde68a;">⚡ Fastest India</button>
+        </div>
+    </div>
+
+    <form id="settingsForm">
+        <div class="grid" style="margin-bottom:1.5rem;">
+            <!-- Sarvam TTS -->
+            <div class="card">
+                <h2>🔊 Sarvam AI (TTS)</h2>
+                <div class="form-group">
+                    <label>Model</label>
+                    <select id="sarvam_model" onchange="updateModelUI()">
+                        <option value="bulbul:v3">bulbul:v3</option>
+                        <option value="bulbul:v2">bulbul:v2</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Voice</label>
+                    <select id="sarvam_voice"></select>
+                </div>
+                <div class="form-group">
+                    <label>Pace</label>
+                    <div class="range-container">
+                        <input type="range" id="sarvam_pace" min="0.5" max="2.0" step="0.1" value="1.0" oninput="updateRange('sarvam_pace');updateMetrics()">
+                        <span class="range-value" id="sarvam_pace_val">1.0</span>
+                    </div>
+                </div>
+                <div class="form-group" id="temp_group">
+                    <label>Temperature <span class="hint" style="display:inline">(v3 only — expressiveness)</span></label>
+                    <div class="range-container">
+                        <input type="range" id="sarvam_temperature" min="0.01" max="1.0" step="0.01" value="0.6" oninput="updateRange('sarvam_temperature')">
+                        <span class="range-value" id="sarvam_temperature_val">0.6</span>
+                    </div>
+                </div>
+                <div class="form-group" id="pitch_group" style="display:none;">
+                    <label>Pitch <span class="hint" style="display:inline">(v2 only)</span></label>
+                    <div class="range-container">
+                        <input type="range" id="sarvam_pitch" min="-0.75" max="0.75" step="0.05" value="0.0" oninput="updateRange('sarvam_pitch')">
+                        <span class="range-value" id="sarvam_pitch_val">0.0</span>
+                    </div>
+                </div>
+                <div class="form-group" id="loudness_group" style="display:none;">
+                    <label>Loudness <span class="hint" style="display:inline">(v2 only)</span></label>
+                    <div class="range-container">
+                        <input type="range" id="sarvam_loudness" min="0.3" max="3.0" step="0.1" value="1.0" oninput="updateRange('sarvam_loudness')">
+                        <span class="range-value" id="sarvam_loudness_val">1.0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Deepgram STT + Audio Devices -->
+            <div class="card">
+                <h2>🎤 Deepgram (STT)</h2>
+                <div class="form-group">
+                    <label>Model</label>
+                    <select id="deepgram_model" onchange="updateMetrics()">
+                        <option value="nova-2" selected>nova-2 (Hindi / multilingual)</option>
+                        <option value="nova-3">nova-3 (English only)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="deepgram_smart_format">
+                        Smart Formatting <span class="hint" style="display:inline;">(English only)</span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="deepgram_punctuate" checked>
+                        Punctuate
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>Keywords (Boost)</label>
+                    <input type="text" id="deepgram_keywords" placeholder="PropBot, RERA, EMI, BHK">
+                </div>
+                <div class="form-group">
+                    <label>VAD Endpointing (ms)</label>
+                    <span class="hint">Silence before finalizing speech. Wired: 80–150. Bluetooth: 300+.</span>
+                    <div class="range-container">
+                        <input type="range" id="deepgram_endpointing" min="50" max="1000" step="10" value="300" oninput="updateRange('deepgram_endpointing')">
+                        <span class="range-value" id="deepgram_endpointing_val">300</span>
+                    </div>
+                </div>
+                <hr>
+                <h2>🔌 Audio Devices</h2>
+                <div class="form-group">
+                    <label>Input Device Index</label>
+                    <span class="hint">Blank = system default. See console log for device list.</span>
+                    <input type="text" id="audio_input_device" placeholder="default">
+                </div>
+                <div class="form-group">
+                    <label>Output Device Index</label>
+                    <input type="text" id="audio_output_device" placeholder="default">
+                </div>
+            </div>
+        </div>
+
+        <!-- LLM Selector (full width) -->
+        <div class="card" style="margin-bottom:1.5rem;">
+            <h2>🧠 LLM Provider</h2>
+            <div class="grid">
+                <div class="form-group">
+                    <label>Provider</label>
+                    <select id="llm_provider" onchange="updateLLMModels();updateMetrics()">
+                        <option value="openai">OpenAI</option>
+                        <option value="bedrock">AWS Bedrock</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Model</label>
+                    <select id="llm_model" onchange="updateMetrics()"></select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cost & Latency Panel -->
+        <div class="card" style="margin-bottom:1.5rem;">
+            <h2>📊 Estimated Cost &amp; Latency <span class="hint" style="display:inline;font-weight:400;">(per conversation turn, ~50 tokens in / ~80 tokens out)</span></h2>
+            <div class="metrics-grid">
+                <div class="metric-box">
+                    <div class="label">LLM Cost / turn</div>
+                    <div class="value" id="m_llm_cost">—</div>
+                </div>
+                <div class="metric-box">
+                    <div class="label">STT Cost / min</div>
+                    <div class="value" id="m_stt_cost">—</div>
+                </div>
+                <div class="metric-box">
+                    <div class="label">TTS Cost / 1k chars</div>
+                    <div class="value" id="m_tts_cost">—</div>
+                </div>
+                <div class="metric-box">
+                    <div class="label">LLM Latency (est)</div>
+                    <div class="value" id="m_llm_lat">—</div>
+                </div>
+                <div class="metric-box">
+                    <div class="label">TTS Latency (est)</div>
+                    <div class="value" id="m_tts_lat">—</div>
+                </div>
+                <div class="metric-box">
+                    <div class="label">Total / turn</div>
+                    <div class="value" id="m_total">—</div>
+                </div>
+            </div>
+            <div class="cost-note">
+                Prices are estimates based on public pricing (Jul 2025). Actual usage varies with conversation length.
+                Bedrock models run in ap-south-1 (Mumbai) for lowest India latency. Sarvam TTS ~₹1.5/1k chars (~$0.018). Deepgram nova-2 ~$0.0043/min.
+            </div>
+        </div>
+
+        <div class="actions">
+            <button type="button" class="start" id="startBtn" onclick="startBot()">▶ Start Voice Bot</button>
+            <button type="button" class="stop" id="stopBtn" onclick="stopBot()" disabled>■ Stop Bot</button>
+        </div>
+    </form>
+
+    <!-- Log Console -->
+    <div class="card" style="margin-top:1.5rem;">
+        <h2>📋 Console Log</h2>
+        <div id="logConsole">Waiting for bot to start...</div>
+    </div>
+</div>
+
+<script>
+// ─── Voice data ────────────────────────────────────────────────────────────
+const v3Voices = ["priya","aditya","ritu","neha","rahul","pooja","rohan","simran","kavya","amit","dev","ishita","shreya","ratan","varun","manan","sumit","roopa","kabir","aayan","shubh","ashutosh","advait","amelia","sophia"];
+const v2Voices = ["anushka","abhilash","manisha","vidya","arya","karun","hitesh"];
+
+// ─── LLM model lists with cost & latency data ──────────────────────────────
+// cost_in / cost_out: USD per 1M tokens
+// latency_ms: estimated first-token latency from India
+// Only low-latency models kept — ≤450ms. Slow models (Sonnet, Nova Pro, Llama) removed.
+const LLM_MODELS = {
+    openai: [
+        { id: "gpt-4o-mini",  label: "gpt-4o-mini  (~400ms, cheapest)", cost_in: 0.15, cost_out: 0.60, latency_ms: 400 },
+        { id: "gpt-4.1-mini", label: "gpt-4.1-mini (~450ms)",           cost_in: 0.40, cost_out: 1.60, latency_ms: 450 },
+    ],
+    bedrock: [
+        // ap-south-1 (Mumbai) — best latency from India
+        { id: "ap.amazon.nova-micro-v1:0",                   label: "Nova Micro  (~100ms, cheapest)", cost_in: 0.035, cost_out: 0.14, latency_ms: 100 },
+        { id: "ap.amazon.nova-lite-v1:0",                    label: "Nova Lite   (~150ms)",          cost_in: 0.06,  cost_out: 0.24, latency_ms: 150 },
+        { id: "ap.anthropic.claude-haiku-4-5-20251001-v1:0", label: "Haiku 4.5  (~200ms)",          cost_in: 0.80,  cost_out: 4.00, latency_ms: 200 },
+        { id: "ap.anthropic.claude-haiku-3-5-20241022-v1:0", label: "Haiku 3.5  (~200ms)",          cost_in: 0.80,  cost_out: 4.00, latency_ms: 200 },
+    ],
+};
+
+// Per-1k-char TTS cost and latency
+const SARVAM_INFO = {
+    "bulbul:v3":      { cost_per_1k: 0.018, latency_ms: 400 },
+    "bulbul:v2":      { cost_per_1k: 0.018, latency_ms: 350 },
+    "bulbul:v3-beta": { cost_per_1k: 0.018, latency_ms: 400 },
+};
+// Deepgram nova-2 = $0.0043/min, nova-3 = $0.0059/min
+const DG_COST_PER_MIN = { "nova-2": 0.0043, "nova-3": 0.0059 };
+
+// ─── Profiles ──────────────────────────────────────────────────────────────
+const PROFILES = {
+    natural_hindi: {
+        sarvam_model:"bulbul:v3", sarvam_voice:"priya",
+        sarvam_pace:1.0, sarvam_temperature:0.6, sarvam_pitch:0.0, sarvam_loudness:1.0,
+        deepgram_model:"nova-2", deepgram_smart_format:false, deepgram_punctuate:true,
+        deepgram_keywords:"PropBot,RERA,EMI,BHK,सोसाइटी", deepgram_endpointing:300,
+        llm_provider:"openai", llm_model:"gpt-4o-mini",
+        audio_input_device:"", audio_output_device:"",
+    },
+    fast_sales: {
+        sarvam_model:"bulbul:v3", sarvam_voice:"aditya",
+        sarvam_pace:1.3, sarvam_temperature:0.8, sarvam_pitch:0.0, sarvam_loudness:1.0,
+        deepgram_model:"nova-2", deepgram_smart_format:false, deepgram_punctuate:true,
+        deepgram_keywords:"PropBot,RERA,EMI,BHK", deepgram_endpointing:250,
+        llm_provider:"openai", llm_model:"gpt-4o-mini",
+        audio_input_device:"", audio_output_device:"",
+    },
+    calm_support: {
+        sarvam_model:"bulbul:v3", sarvam_voice:"priya",
+        sarvam_pace:0.9, sarvam_temperature:0.3, sarvam_pitch:0.0, sarvam_loudness:1.0,
+        deepgram_model:"nova-2", deepgram_smart_format:false, deepgram_punctuate:true,
+        deepgram_keywords:"PropBot,RERA,EMI,BHK", deepgram_endpointing:400,
+        llm_provider:"openai", llm_model:"gpt-4o-mini",
+        audio_input_device:"", audio_output_device:"",
+    },
+    expressive_v3: {
+        sarvam_model:"bulbul:v3", sarvam_voice:"kavya",
+        sarvam_pace:1.1, sarvam_temperature:0.95, sarvam_pitch:0.0, sarvam_loudness:1.0,
+        deepgram_model:"nova-2", deepgram_smart_format:false, deepgram_punctuate:true,
+        deepgram_keywords:"PropBot,RERA,EMI,BHK", deepgram_endpointing:300,
+        llm_provider:"openai", llm_model:"gpt-4o-mini",
+        audio_input_device:"", audio_output_device:"",
+    },
+    v2_anushka: {
+        // bulbul:v2 — good voices but outputs 22050 Hz, now handled by pipeline
+        sarvam_model:"bulbul:v2", sarvam_voice:"anushka",
+        sarvam_pace:1.0, sarvam_temperature:0.6, sarvam_pitch:0.0, sarvam_loudness:1.2,
+        deepgram_model:"nova-2", deepgram_smart_format:false, deepgram_punctuate:true,
+        deepgram_keywords:"PropBot,RERA,EMI,BHK", deepgram_endpointing:300,
+        llm_provider:"openai", llm_model:"gpt-4o-mini",
+        audio_input_device:"", audio_output_device:"",
+    },
+    low_vad: {
+        sarvam_model:"bulbul:v3", sarvam_voice:"priya",
+        sarvam_pace:1.0, sarvam_temperature:0.6, sarvam_pitch:0.0, sarvam_loudness:1.0,
+        deepgram_model:"nova-2", deepgram_smart_format:false, deepgram_punctuate:true,
+        deepgram_keywords:"PropBot,RERA,EMI,BHK", deepgram_endpointing:80,
+        llm_provider:"openai", llm_model:"gpt-4o-mini",
+        audio_input_device:"", audio_output_device:"",
+    },
+    high_vad: {
+        sarvam_model:"bulbul:v3", sarvam_voice:"priya",
+        sarvam_pace:1.0, sarvam_temperature:0.6, sarvam_pitch:0.0, sarvam_loudness:1.0,
+        deepgram_model:"nova-2", deepgram_smart_format:false, deepgram_punctuate:true,
+        deepgram_keywords:"PropBot,RERA,EMI,BHK", deepgram_endpointing:600,
+        llm_provider:"openai", llm_model:"gpt-4o-mini",
+        audio_input_device:"", audio_output_device:"",
+    },
+    cheap_bedrock: {
+        // Cheapest possible: Nova Micro ap-south-1 (Mumbai) + bulbul:v3
+        sarvam_model:"bulbul:v3", sarvam_voice:"priya",
+        sarvam_pace:1.0, sarvam_temperature:0.6, sarvam_pitch:0.0, sarvam_loudness:1.0,
+        deepgram_model:"nova-2", deepgram_smart_format:false, deepgram_punctuate:true,
+        deepgram_keywords:"PropBot,RERA,EMI,BHK", deepgram_endpointing:300,
+        llm_provider:"bedrock", llm_model:"ap.amazon.nova-micro-v1:0",
+        audio_input_device:"", audio_output_device:"",
+    },
+    fastest_india: {
+        // Lowest latency from India: OpenAI gpt-4o-mini (CDN edge, ~400ms) + low VAD for wired headset
+        sarvam_model:"bulbul:v3", sarvam_voice:"priya",
+        sarvam_pace:1.0, sarvam_temperature:0.6, sarvam_pitch:0.0, sarvam_loudness:1.0,
+        deepgram_model:"nova-2", deepgram_smart_format:false, deepgram_punctuate:true,
+        deepgram_keywords:"PropBot,RERA,EMI,BHK,सोसाइटी", deepgram_endpointing:150,
+        llm_provider:"openai", llm_model:"gpt-4o-mini",
+        audio_input_device:"", audio_output_device:"",
+    },
+};
+
+// ─── UI helpers ────────────────────────────────────────────────────────────
+let logPollInterval = null;
+
+function updateRange(id) {
+    document.getElementById(id + "_val").innerText = document.getElementById(id).value;
+}
+
+function updateModelUI() {
+    const model = document.getElementById("sarvam_model").value;
+    const voiceSelect = document.getElementById("sarvam_voice");
+    const savedVoice = voiceSelect.value;
+    voiceSelect.innerHTML = "";
+    const voices = model === "bulbul:v3" ? v3Voices : v2Voices;
+    voices.forEach(v => {
+        const opt = document.createElement("option");
+        opt.value = v; opt.textContent = v;
+        voiceSelect.appendChild(opt);
+    });
+    if (voices.includes(savedVoice)) voiceSelect.value = savedVoice;
+
+    const isV3 = model !== "bulbul:v2";
+    document.getElementById("temp_group").style.display = isV3 ? "block" : "none";
+    document.getElementById("pitch_group").style.display = isV3 ? "none" : "block";
+    document.getElementById("loudness_group").style.display = isV3 ? "none" : "block";
+
+    const pace = document.getElementById("sarvam_pace");
+    if (isV3) { pace.min = 0.5; pace.max = 2.0; }
+    else       { pace.min = 0.3; pace.max = 3.0; }
+    updateRange("sarvam_pace");
+    updateMetrics();
+}
+
+function updateLLMModels() {
+    const provider = document.getElementById("llm_provider").value;
+    const sel = document.getElementById("llm_model");
+    const savedId = sel.value;
+    sel.innerHTML = "";
+    LLM_MODELS[provider].forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m.id; opt.textContent = m.label;
+        sel.appendChild(opt);
+    });
+    const ids = LLM_MODELS[provider].map(m => m.id);
+    if (ids.includes(savedId)) sel.value = savedId;
+    updateMetrics();
+}
+
+function colorValue(el, value, greenMax, yellowMax) {
+    el.className = "value";
+    if (value <= greenMax) el.classList.add("green");
+    else if (value <= yellowMax) el.classList.add("yellow");
+    else el.classList.add("red");
+}
+
+function updateMetrics() {
+    const provider = document.getElementById("llm_provider").value;
+    const modelId = document.getElementById("llm_model").value;
+    const sarvamModel = document.getElementById("sarvam_model").value;
+    const dgModel = document.getElementById("deepgram_model").value;
+
+    const llmInfo = (LLM_MODELS[provider] || []).find(m => m.id === modelId);
+    const ttsInfo = SARVAM_INFO[sarvamModel] || SARVAM_INFO["bulbul:v3"];
+    const dgCost = DG_COST_PER_MIN[dgModel] || 0.0043;
+
+    if (!llmInfo) return;
+
+    // ~50 tokens in, ~80 out per turn
+    const llmCost = (50 * llmInfo.cost_in + 80 * llmInfo.cost_out) / 1_000_000;
+    // STT: ~10s speaking per turn = 0.167 min
+    const sttCost = dgCost * 0.167;
+    // TTS: ~80 output tokens ≈ ~300 chars
+    const ttsCost = ttsInfo.cost_per_1k * 0.3;
+    const totalCost = llmCost + sttCost + ttsCost;
+
+    const totalLatMs = llmInfo.latency_ms + ttsInfo.latency_ms;
+
+    const fmt$ = v => v < 0.001 ? `$${(v*1000).toFixed(3)}m` : `$${v.toFixed(4)}`;
+
+    const elLlm = document.getElementById("m_llm_cost");
+    elLlm.innerText = fmt$(llmCost);
+    colorValue(elLlm, llmCost*1000, 0.1, 0.5);  // thresholds in milli-dollars
+
+    document.getElementById("m_stt_cost").innerText = fmt$(sttCost);
+    document.getElementById("m_tts_cost").innerText = `$${(ttsInfo.cost_per_1k).toFixed(3)}/1k`;
+
+    const elTotal = document.getElementById("m_total");
+    elTotal.innerText = fmt$(totalCost);
+    colorValue(elTotal, totalCost*1000, 0.2, 1.0);
+
+    const elLat = document.getElementById("m_llm_lat");
+    elLat.innerText = `~${llmInfo.latency_ms}ms`;
+    colorValue(elLat, llmInfo.latency_ms, 400, 700);
+
+    const elTtsLat = document.getElementById("m_tts_lat");
+    elTtsLat.innerText = `~${ttsInfo.latency_ms}ms`;
+    colorValue(elTtsLat, ttsInfo.latency_ms, 400, 600);
+}
+
+function applyProfile(name) {
+    const p = PROFILES[name];
+    if (!p) return;
+    document.getElementById("sarvam_model").value = p.sarvam_model;
+    updateModelUI();
+    document.getElementById("sarvam_voice").value = p.sarvam_voice;
+    document.getElementById("sarvam_pace").value = p.sarvam_pace;
+    document.getElementById("sarvam_temperature").value = p.sarvam_temperature;
+    document.getElementById("sarvam_pitch").value = p.sarvam_pitch;
+    document.getElementById("sarvam_loudness").value = p.sarvam_loudness;
+    document.getElementById("deepgram_model").value = p.deepgram_model;
+    document.getElementById("deepgram_smart_format").checked = p.deepgram_smart_format;
+    document.getElementById("deepgram_punctuate").checked = p.deepgram_punctuate;
+    document.getElementById("deepgram_keywords").value = p.deepgram_keywords;
+    document.getElementById("deepgram_endpointing").value = p.deepgram_endpointing;
+    document.getElementById("llm_provider").value = p.llm_provider;
+    updateLLMModels();
+    document.getElementById("llm_model").value = p.llm_model;
+    document.getElementById("audio_input_device").value = p.audio_input_device;
+    document.getElementById("audio_output_device").value = p.audio_output_device;
+    ["sarvam_pace","sarvam_temperature","sarvam_pitch","sarvam_loudness","deepgram_endpointing"].forEach(updateRange);
+    updateMetrics();
+}
+
+// ─── Log console ───────────────────────────────────────────────────────────
+function colorLine(line) {
+    if (/ERROR|error/.test(line)) return "log-error";
+    if (/WARNING|Warning/.test(line)) return "log-warn";
+    if (/INFO/.test(line)) return "log-info";
+    return "log-debug";
+}
+function escapeHtml(s) {
+    return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+async function pollLogs() {
+    try {
+        const res = await fetch("/api/logs");
+        const data = await res.json();
+        const el = document.getElementById("logConsole");
+        if (data.logs && data.logs.length > 0) {
+            el.innerHTML = data.logs.map(l => `<span class="${colorLine(l)}">${escapeHtml(l)}</span>`).join("\n");
+            el.scrollTop = el.scrollHeight;
+        }
+    } catch(e) {}
+}
+async function checkStatus() {
+    try {
+        const res = await fetch("/api/status");
+        const data = await res.json();
+        updateStatusUI(data.status);
+    } catch(e) {}
+}
+function updateStatusUI(status) {
+    const indicator = document.getElementById("statusIndicator");
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    if (status === "running") {
+        indicator.className = "status-badge"; indicator.innerText = "● RUNNING";
+        startBtn.disabled = true; stopBtn.disabled = false;
+    } else {
+        indicator.className = "status-badge stopped"; indicator.innerText = "● STOPPED";
+        startBtn.disabled = false; stopBtn.disabled = true;
+    }
+}
+
+// ─── Bot control ──────────────────────────────────────────────────────────
+async function startBot() {
+    const payload = {
+        sarvam_model: document.getElementById("sarvam_model").value,
+        sarvam_voice: document.getElementById("sarvam_voice").value,
+        sarvam_pace: parseFloat(document.getElementById("sarvam_pace").value),
+        sarvam_temperature: parseFloat(document.getElementById("sarvam_temperature").value),
+        sarvam_pitch: parseFloat(document.getElementById("sarvam_pitch").value),
+        sarvam_loudness: parseFloat(document.getElementById("sarvam_loudness").value),
+        deepgram_model: document.getElementById("deepgram_model").value,
+        deepgram_smart_format: document.getElementById("deepgram_smart_format").checked,
+        deepgram_punctuate: document.getElementById("deepgram_punctuate").checked,
+        deepgram_keywords: document.getElementById("deepgram_keywords").value,
+        deepgram_endpointing: parseInt(document.getElementById("deepgram_endpointing").value),
+        llm_provider: document.getElementById("llm_provider").value,
+        llm_model: document.getElementById("llm_model").value,
+        audio_input_device: document.getElementById("audio_input_device").value,
+        audio_output_device: document.getElementById("audio_output_device").value,
+    };
+    document.getElementById("logConsole").innerHTML = "Starting bot...";
+    document.getElementById("startBtn").disabled = true;
+    localStorage.setItem("propbot_settings", JSON.stringify(payload));
+    try {
+        await fetch("/api/start", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload) });
+        if (logPollInterval) clearInterval(logPollInterval);
+        logPollInterval = setInterval(pollLogs, 1000);
+        setTimeout(checkStatus, 500);
+    } catch(e) { alert("Failed to start bot: " + e); }
+}
+async function stopBot() {
+    document.getElementById("stopBtn").disabled = true;
+    try {
+        await fetch("/api/stop", {method:"POST"});
+        if (logPollInterval) { clearInterval(logPollInterval); logPollInterval = null; }
+        setTimeout(checkStatus, 500);
+    } catch(e) { alert("Failed to stop bot"); }
+}
+
+// ─── Persist & restore settings ────────────────────────────────────────────
+function loadSettings() {
+    try {
+        const saved = localStorage.getItem("propbot_settings");
+        if (!saved) return;
+        const d = JSON.parse(saved);
+        if (d.sarvam_model) document.getElementById("sarvam_model").value = d.sarvam_model;
+        updateModelUI();
+        if (d.sarvam_voice) document.getElementById("sarvam_voice").value = d.sarvam_voice;
+        if (d.sarvam_pace) document.getElementById("sarvam_pace").value = d.sarvam_pace;
+        if (d.sarvam_temperature) document.getElementById("sarvam_temperature").value = d.sarvam_temperature;
+        if (d.sarvam_pitch !== undefined) document.getElementById("sarvam_pitch").value = d.sarvam_pitch;
+        if (d.sarvam_loudness) document.getElementById("sarvam_loudness").value = d.sarvam_loudness;
+        if (d.deepgram_model) document.getElementById("deepgram_model").value = d.deepgram_model;
+        if (d.deepgram_smart_format !== undefined) document.getElementById("deepgram_smart_format").checked = d.deepgram_smart_format;
+        if (d.deepgram_punctuate !== undefined) document.getElementById("deepgram_punctuate").checked = d.deepgram_punctuate;
+        if (d.deepgram_keywords) document.getElementById("deepgram_keywords").value = d.deepgram_keywords;
+        if (d.deepgram_endpointing) document.getElementById("deepgram_endpointing").value = d.deepgram_endpointing;
+        if (d.llm_provider) { document.getElementById("llm_provider").value = d.llm_provider; updateLLMModels(); }
+        if (d.llm_model) document.getElementById("llm_model").value = d.llm_model;
+        if (d.audio_input_device) document.getElementById("audio_input_device").value = d.audio_input_device;
+        if (d.audio_output_device) document.getElementById("audio_output_device").value = d.audio_output_device;
+        ["sarvam_pace","sarvam_temperature","sarvam_pitch","sarvam_loudness","deepgram_endpointing"].forEach(updateRange);
+    } catch(e) { console.error("Failed to load settings", e); }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────
+updateLLMModels();
+updateModelUI();
+loadSettings();
+updateMetrics();
+setInterval(checkStatus, 3000);
+</script>
+</body>
+</html>

@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PropBot — Project Blueprint</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+
+  .header {
+    text-align: center;
+    padding: 40px 20px 20px;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-bottom: 1px solid #1e293b;
+  }
+  .header h1 { font-size: 32px; font-weight: 800; color: #f97316; margin-bottom: 8px; }
+  .header p { color: #94a3b8; font-size: 14px; }
+  .header .date { color: #64748b; font-size: 12px; margin-top: 4px; }
+
+  .legend {
+    display: flex; gap: 24px; justify-content: center; margin: 20px 0 10px;
+    flex-wrap: wrap;
+  }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #94a3b8; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot-done { background: #22c55e; }
+  .dot-broken { background: #ef4444; }
+  .dot-partial { background: #f59e0b; }
+  .dot-future { background: #64748b; }
+
+  .container { max-width: 1400px; margin: 0 auto; padding: 30px 20px; }
+
+  /* ─── SECTION TITLES ─── */
+  .section-title {
+    font-size: 18px; font-weight: 700; color: #f97316; margin: 40px 0 20px;
+    padding-bottom: 8px; border-bottom: 2px solid #f9731633;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-title:first-of-type { margin-top: 0; }
+
+  /* ─── FLOW DIAGRAMS ─── */
+  .flow-row {
+    display: flex; align-items: stretch; gap: 0; margin: 0 0 30px;
+    overflow-x: auto; padding-bottom: 10px;
+  }
+  .flow-card {
+    min-width: 180px; max-width: 220px; flex-shrink: 0;
+    background: #1e293b; border: 2px solid #334155; border-radius: 12px;
+    padding: 16px; text-align: center; position: relative;
+  }
+  .flow-card.done { border-color: #22c55e; background: #22c55e0d; }
+  .flow-card.broken { border-color: #ef4444; background: #ef44440d; }
+  .flow-card.partial { border-color: #f59e0b; background: #f59e0b0d; }
+  .flow-card.future { border-color: #475569; background: #4755690d; opacity: 0.6; }
+
+  .flow-card .icon { font-size: 28px; margin-bottom: 8px; }
+  .flow-card .title { font-size: 14px; font-weight: 700; color: #f8fafc; margin-bottom: 4px; }
+  .flow-card .desc { font-size: 11px; color: #94a3b8; line-height: 1.4; }
+  .flow-card .status-tag {
+    display: inline-block; font-size: 10px; font-weight: 600;
+    padding: 2px 8px; border-radius: 20px; margin-top: 8px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .tag-done { background: #22c55e22; color: #4ade80; }
+  .tag-broken { background: #ef444422; color: #f87171; }
+  .tag-partial { background: #f59e0b22; color: #fbbf24; }
+  .tag-future { background: #47556922; color: #94a3b8; }
+
+  .flow-arrow {
+    display: flex; align-items: center; justify-content: center;
+    min-width: 40px; color: #475569; font-size: 24px; flex-shrink: 0;
+  }
+
+  /* ─── GRID LAYOUTS ─── */
+  .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 30px; }
+
+  .info-card {
+    background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+    padding: 20px; position: relative;
+  }
+  .info-card .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .info-card .card-icon { font-size: 24px; }
+  .info-card .card-title { font-size: 15px; font-weight: 700; color: #f8fafc; }
+  .info-card .card-body { font-size: 12px; color: #94a3b8; line-height: 1.6; }
+  .info-card .card-body strong { color: #cbd5e1; }
+  .info-card.highlight { border-color: #f97316; border-width: 2px; }
+
+  /* ─── CALL FLOW DIAGRAM ─── */
+  .call-flow {
+    background: #1e293b; border: 2px solid #334155; border-radius: 16px;
+    padding: 30px; margin-bottom: 30px;
+  }
+  .call-flow h3 { text-align: center; color: #f97316; font-size: 16px; margin-bottom: 24px; }
+  .call-flow-steps {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0; flex-wrap: wrap;
+  }
+  .call-step {
+    text-align: center; padding: 12px 16px;
+    background: #0f172a; border: 2px solid #f97316; border-radius: 12px;
+    min-width: 130px;
+  }
+  .call-step .step-icon { font-size: 32px; margin-bottom: 6px; }
+  .call-step .step-label { font-size: 12px; font-weight: 600; color: #f8fafc; }
+  .call-step .step-detail { font-size: 10px; color: #94a3b8; margin-top: 2px; }
+  .call-arrow { color: #f97316; font-size: 28px; padding: 0 6px; }
+
+  /* ─── DASHBOARD TABS ─── */
+  .tabs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 30px; }
+  .tab-card {
+    background: #1e293b; border: 2px solid #334155; border-radius: 10px;
+    padding: 14px; text-align: center;
+  }
+  .tab-card.done { border-color: #22c55e; }
+  .tab-card.broken { border-color: #ef4444; }
+  .tab-card.partial { border-color: #f59e0b; }
+  .tab-card .tab-icon { font-size: 22px; }
+  .tab-card .tab-name { font-size: 13px; font-weight: 700; color: #f8fafc; margin: 6px 0 2px; }
+  .tab-card .tab-status { font-size: 11px; color: #94a3b8; }
+
+  /* ─── ROADMAP ─── */
+  .roadmap { display: flex; gap: 16px; margin-bottom: 30px; overflow-x: auto; padding-bottom: 10px; }
+  .roadmap-col {
+    min-width: 280px; flex: 1;
+    background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+    overflow: hidden;
+  }
+  .roadmap-col-header {
+    padding: 14px 16px; font-size: 14px; font-weight: 700; text-align: center;
+    border-bottom: 1px solid #334155;
+  }
+  .col-now { background: #f9731622; color: #f97316; }
+  .col-next { background: #3b82f622; color: #60a5fa; }
+  .col-later { background: #8b5cf622; color: #a78bfa; }
+  .roadmap-items { padding: 12px; }
+  .roadmap-item {
+    background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+    padding: 10px 12px; margin-bottom: 8px; font-size: 12px; color: #cbd5e1; line-height: 1.4;
+  }
+  .roadmap-item:last-child { margin-bottom: 0; }
+  .roadmap-item .ri-title { font-weight: 600; color: #f8fafc; margin-bottom: 2px; }
+  .roadmap-item .ri-why { color: #94a3b8; font-size: 11px; }
+
+  /* ─── TECH STACK ─── */
+  .stack-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 30px; }
+  .stack-chip {
+    background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+    padding: 10px 16px; font-size: 12px; display: flex; align-items: center; gap: 8px;
+  }
+  .stack-chip .chip-icon { font-size: 18px; }
+  .stack-chip .chip-label { color: #cbd5e1; font-weight: 600; }
+  .stack-chip .chip-role { color: #64748b; }
+
+  /* ─── NUMBERS ─── */
+  .numbers-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 30px; }
+  .number-card {
+    background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+    padding: 20px; text-align: center;
+  }
+  .number-card .num { font-size: 28px; font-weight: 800; color: #f97316; }
+  .number-card .num-label { font-size: 11px; color: #94a3b8; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .number-card.green .num { color: #22c55e; }
+  .number-card.red .num { color: #ef4444; }
+  .number-card.yellow .num { color: #f59e0b; }
+
+  /* ─── YOUR SALES FLOW ─── */
+  .sales-flow {
+    background: linear-gradient(135deg, #1e293b 0%, #172033 100%);
+    border: 2px solid #f9731644; border-radius: 16px;
+    padding: 30px; margin-bottom: 30px;
+  }
+  .sales-flow h3 { color: #f97316; font-size: 16px; margin-bottom: 20px; text-align: center; }
+  .sales-steps { display: flex; flex-direction: column; gap: 0; }
+  .sales-step {
+    display: flex; align-items: flex-start; gap: 16px; padding: 16px 0;
+    border-bottom: 1px solid #334155;
+  }
+  .sales-step:last-child { border-bottom: none; }
+  .step-num {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: #f97316; color: #0f172a; font-weight: 800; font-size: 16px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .step-content .step-title { font-size: 14px; font-weight: 700; color: #f8fafc; margin-bottom: 4px; }
+  .step-content .step-desc { font-size: 12px; color: #94a3b8; line-height: 1.5; }
+
+  @media (max-width: 768px) {
+    .flow-row { flex-direction: column; align-items: center; }
+    .flow-arrow { transform: rotate(90deg); min-width: auto; min-height: 30px; }
+    .call-flow-steps { flex-direction: column; }
+    .call-arrow { transform: rotate(90deg); }
+    .roadmap { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>PropBot Blueprint</h1>
+  <p>AI Voice Receptionist for Indian Real Estate Agents</p>
+  <div class="date">Last updated: April 8, 2026</div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot dot-done"></div> Working</div>
+    <div class="legend-item"><div class="legend-dot dot-broken"></div> Broken / Needs Fix</div>
+    <div class="legend-item"><div class="legend-dot dot-partial"></div> Partial / Needs Work</div>
+    <div class="legend-item"><div class="legend-dot dot-future"></div> Not Built Yet</div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ═══════════ SNAPSHOT NUMBERS ═══════════ -->
+  <div class="section-title">📊 Project Snapshot</div>
+  <div class="numbers-row">
+    <div class="number-card green"><div class="num">14</div><div class="num-label">Features Done</div></div>
+    <div class="number-card red"><div class="num">3</div><div class="num-label">UI Bugs to Fix</div></div>
+    <div class="number-card yellow"><div class="num">2</div><div class="num-label">Features Partial</div></div>
+    <div class="number-card"><div class="num">0</div><div class="num-label">Paying Customers</div></div>
+  </div>
+
+  <!-- ═══════════ CALL FLOW ═══════════ -->
+  <div class="section-title">📞 How a Call Works (The Core Product)</div>
+  <div class="call-flow">
+    <h3>Inbound Call Flow — What Happens When Someone Calls</h3>
+    <div class="call-flow-steps">
+      <div class="call-step">
+        <div class="step-icon">🏠</div>
+        <div class="step-label">Buyer Sees Number</div>
+        <div class="step-detail">On listing, website, JustDial</div>
+      </div>
+      <div class="call-arrow">→</div>
+      <div class="call-step">
+        <div class="step-icon">📱</div>
+        <div class="step-label">Calls PropBot Number</div>
+        <div class="step-detail">+91 XXXXXXXXXX</div>
+      </div>
+      <div class="call-arrow">→</div>
+      <div class="call-step">
+        <div class="step-icon">📡</div>
+        <div class="step-label">Vobiz Receives</div>
+        <div class="step-detail">Indian SIP trunk</div>
+      </div>
+      <div class="call-arrow">→</div>
+      <div class="call-step">
+        <div class="step-icon">🤖</div>
+        <div class="step-label">Bolna AI Answers</div>
+        <div class="step-detail">Hindi / English / Hinglish</div>
+      </div>
+      <div class="call-arrow">→</div>
+      <div class="call-step">
+        <div class="step-icon">📋</div>
+        <div class="step-label">Lead Captured</div>
+        <div class="step-detail">Name, budget, area, urgency</div>
+      </div>
+      <div class="call-arrow">→</div>
+      <div class="call-step">
+        <div class="step-icon">📧</div>
+        <div class="step-label">Agent Gets Email</div>
+        <div class="step-detail">Instant lead alert</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ PHONE SYSTEM ═══════════ -->
+  <div class="section-title">📱 Phone Number System</div>
+  <div class="grid-3">
+    <div class="info-card highlight">
+      <div class="card-header"><div class="card-icon">🔑</div><div class="card-title">Current System: New Number</div></div>
+      <div class="card-body">
+        You pre-buy Vobiz phone numbers and seed them into the pool via <strong>/admin</strong>. Each agent who signs up gets one of these numbers automatically. <strong>They do NOT give you their existing number</strong> — they get a fresh PropBot number.
+      </div>
+    </div>
+    <div class="info-card">
+      <div class="card-header"><div class="card-icon">🔄</div><div class="card-title">Alternative: Call Forwarding</div></div>
+      <div class="card-body">
+        <strong>Not built yet.</strong> This would let agents keep their existing number and set up call forwarding to the PropBot number. Simpler for agents, but requires them to configure forwarding on their own phone — can be confusing.
+      </div>
+    </div>
+    <div class="info-card">
+      <div class="card-header"><div class="card-icon">📞</div><div class="card-title">Why New Number Is Better for MVP</div></div>
+      <div class="card-body">
+        Agents won't trust handing over their personal number. A <strong>dedicated business number</strong> is a feature, not a downside — "Put this on your listings, AI answers 24/7." Less risk, cleaner separation.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ CUSTOMER SIGNUP FLOW ═══════════ -->
+  <div class="section-title">🚀 Customer Signup Flow (What Happens Today)</div>
+  <div class="flow-row">
+    <div class="flow-card done">
+      <div class="icon">🌐</div>
+      <div class="title">Landing Page</div>
+      <div class="desc">propbot.co.in — agent visits, sees pricing, clicks "Start Free Trial"</div>
+      <span class="status-tag tag-done">Working</span>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-card done">
+      <div class="icon">1️⃣</div>
+      <div class="title">Step 1: Business Info</div>
+      <div class="desc">Business name, agent name, email, phone number</div>
+      <span class="status-tag tag-done">Working</span>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-card broken">
+      <div class="icon">2️⃣</div>
+      <div class="title">Step 2: Voice Choice</div>
+      <div class="desc">Currently shows 6 personas — too complex, needs simplification to 3 fields</div>
+      <span class="status-tag tag-broken">Needs Fix</span>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-card done">
+      <div class="icon">3️⃣</div>
+      <div class="title">Step 3: Listings</div>
+      <div class="desc">Paste property listings → auto-creates Bolna agent + assigns phone number</div>
+      <span class="status-tag tag-done">Working</span>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-card done">
+      <div class="icon">✅</div>
+      <div class="title">Dashboard</div>
+      <div class="desc">Agent sees their PropBot number, leads, call history, billing</div>
+      <span class="status-tag tag-done">Working</span>
+    </div>
+  </div>
+
+  <!-- ═══════════ YOUR SALES WORKFLOW ═══════════ -->
+  <div class="section-title">🎯 Your Sales Workflow (First 10 Customers)</div>
+  <div class="sales-flow">
+    <h3>Manual White-Glove Onboarding — Do This Until Bugs Are Fixed</h3>
+    <div class="sales-steps">
+      <div class="sales-step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <div class="step-title">Call the Real Estate Agent</div>
+          <div class="step-desc">"I have an AI receptionist that answers your property calls 24/7 in Hindi and English. It captures caller details — name, budget, area — and emails you instantly. Want to try it free for 14 days?"</div>
+        </div>
+      </div>
+      <div class="sales-step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <div class="step-title">Sign Them Up Yourself</div>
+          <div class="step-desc">Go to propbot.co.in/signup → enter their business details → pick a voice → paste their listings (ask them to WhatsApp you their listings). System auto-creates their AI agent + assigns a phone number.</div>
+        </div>
+      </div>
+      <div class="sales-step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <div class="step-title">Test Call Their Number</div>
+          <div class="step-desc">Call the PropBot number yourself. Pretend to be a buyer: "I'm looking for a 2BHK in Andheri, budget around 80 lakhs." Confirm the AI responds correctly and the lead shows up in dashboard.</div>
+        </div>
+      </div>
+      <div class="sales-step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <div class="step-title">Hand Over the Number</div>
+          <div class="step-desc">"Here's your AI receptionist number: +91 XXXXXXXXXX. Put this on your property listings, your JustDial page, and your website. Every call gets answered and you'll get an email with the lead details."</div>
+        </div>
+      </div>
+      <div class="sales-step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <div class="step-title">Follow Up in 3 Days</div>
+          <div class="step-desc">Check if they got any leads. Show them their dashboard. If happy, ask them to subscribe. If issues, fix their knowledge base or adjust the AI greeting.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ DASHBOARD STATUS ═══════════ -->
+  <div class="section-title">📱 Dashboard Tabs Status</div>
+  <div class="tabs-grid">
+    <div class="tab-card done"><div class="tab-icon">📋</div><div class="tab-name">Leads</div><div class="tab-status">Working — shows captured leads</div></div>
+    <div class="tab-card done"><div class="tab-icon">📞</div><div class="tab-name">Call History</div><div class="tab-status">Working — transcripts stored</div></div>
+    <div class="tab-card done"><div class="tab-icon">🔔</div><div class="tab-name">Callbacks</div><div class="tab-status">Working — callback requests</div></div>
+    <div class="tab-card done"><div class="tab-icon">📊</div><div class="tab-name">Usage & Cost</div><div class="tab-status">Working — shows call counts</div></div>
+    <div class="tab-card broken"><div class="tab-icon">🤖</div><div class="tab-name">AI Assistant</div><div class="tab-status">6 personas too complex — simplify</div></div>
+    <div class="tab-card done"><div class="tab-icon">🏠</div><div class="tab-name">My Listings</div><div class="tab-status">Working — KB editor</div></div>
+    <div class="tab-card done"><div class="tab-icon">💬</div><div class="tab-name">Chat Widget</div><div class="tab-status">Working — Pro plan only</div></div>
+    <div class="tab-card broken"><div class="tab-icon">💳</div><div class="tab-name">Billing</div><div class="tab-status">Bug: can't select Starter plan</div></div>
+    <div class="tab-card partial"><div class="tab-icon">📅</div><div class="tab-name">Calendar</div><div class="tab-status">OAuth done, booking not wired to voice</div></div>
+  </div>
+
+  <!-- ═══════════ BACKEND FEATURES ═══════════ -->
+  <div class="section-title">⚙️ Backend & Infrastructure</div>
+  <div class="grid-3">
+    <div class="info-card">
+      <div class="card-header"><div class="card-icon">🤖</div><div class="card-title">Voice AI — Bolna.ai</div></div>
+      <div class="card-body">Primary engine. Agent creation, webhook parsing, tool calls all working. Multi-provider abstraction (Vapi as fallback). <span style="color:#4ade80;">✅ Done</span></div>
+    </div>
+    <div class="info-card">
+      <div class="card-header"><div class="card-icon">👥</div><div class="card-title">Multi-Tenant</div></div>
+      <div class="card-body">Each client gets isolated: own agent, number, KB, API key, dashboard. Row-level security. <span style="color:#4ade80;">✅ Done</span></div>
+    </div>
+    <div class="info-card">
+      <div class="card-header"><div class="card-icon">💰</div><div class="card-title">Billing — Razorpay</div></div>
+      <div class="card-body">Starter ₹2,499 (50 calls) / Pro ₹4,999 (unlimited). Subscription lifecycle, trial enforcement. <span style="color:#4ade80;">✅ Backend Done</span> <span style="color:#f87171;">❌ UI Picker Bug</span></div>
+    </div>
+    <div class="info-card">
+      <div class="card-header"><div class="card-icon">📧</div><div class="card-title">Email Alerts</div></div>
+      <div class="card-body">Gmail SMTP. Instant email to agent on new lead or callback request. HTML formatted, async. <span style="color:#4ade80;">✅ Done</span></div>
+    </div>
+    <div class="info-card">
+      <div class="card-header"><div class="card-icon">🔐</div><div class="card-title">Auth</div></div>
+      <div class="card-body">Magic-link login (no passwords), session cookies (7-day), per-client API keys, admin Bearer auth. <span style="color:#4ade80;">✅ Done</span></div>
+    </div>
+    <div class="info-card">
+      <div class="card-header"><div class="card-icon">📡</div><div class="card-title">Hosting — Render</div></div>
+      <div class="card-body">Paid Starter plan, always-on, auto-deploys on push to main. Custom domain propbot.co.in. <span style="color:#4ade80;">✅ Done</span></div>
+    </div>
+  </div>
+
+  <!-- ═══════════ PLANS ═══════════ -->
+  <div class="section-title">💳 Pricing Tiers</div>
+  <div class="grid-3">
+    <div class="info-card" style="border-color: #22c55e;">
+      <div class="card-header"><div class="card-icon">🆓</div><div class="card-title">Free Trial — 14 days</div></div>
+      <div class="card-body">Full access to voice AI, lead capture, email alerts, dashboard. Purpose: let agents experience the value before paying.</div>
+    </div>
+    <div class="info-card" style="border-color: #3b82f6;">
+      <div class="card-header"><div class="card-icon">⭐</div><div class="card-title">Starter — ₹2,499/mo</div></div>
+      <div class="card-body"><strong>50 calls/month.</strong> Voice AI + lead capture + email alerts + dashboard. Best for agents with moderate call volume.</div>
+    </div>
+    <div class="info-card" style="border-color: #f97316;">
+      <div class="card-header"><div class="card-icon">🚀</div><div class="card-title">Pro — ₹4,999/mo</div></div>
+      <div class="card-body"><strong>Unlimited calls.</strong> Everything in Starter + chat widget for website. Future: WhatsApp integration as Pro add-on.</div>
+    </div>
+  </div>
+
+  <!-- ═══════════ ROADMAP ═══════════ -->
+  <div class="section-title">🗺️ Roadmap: Now → Next → Later</div>
+  <div class="roadmap">
+    <div class="roadmap-col">
+      <div class="roadmap-col-header col-now">🔥 NOW — This Week</div>
+      <div class="roadmap-items">
+        <div class="roadmap-item">
+          <div class="ri-title">Fix billing plan selector</div>
+          <div class="ri-why">Agents can't pick Starter — forced into Pro. Blocking revenue.</div>
+        </div>
+        <div class="roadmap-item">
+          <div class="ri-title">Simplify AI assistant picker</div>
+          <div class="ri-why">6 personas → 3 simple fields. Less confusion for agents.</div>
+        </div>
+        <div class="roadmap-item">
+          <div class="ri-title">Commit 18 uncommitted files</div>
+          <div class="ri-why">No clean rollback point. Must commit before any more work.</div>
+        </div>
+        <div class="roadmap-item">
+          <div class="ri-title">Wire calendar booking into voice</div>
+          <div class="ri-why">"Check availability" tool is a stub. Biggest feature gap.</div>
+        </div>
+        <div class="roadmap-item">
+          <div class="ri-title">Manual onboard first 3 agents</div>
+          <div class="ri-why">White-glove setup. Learn what works, get testimonials.</div>
+        </div>
+      </div>
+    </div>
+    <div class="roadmap-col">
+      <div class="roadmap-col-header col-next">📋 NEXT — Weeks 2–4</div>
+      <div class="roadmap-items">
+        <div class="roadmap-item">
+          <div class="ri-title">Call forwarding option</div>
+          <div class="ri-why">Let agents forward their existing number to PropBot number. Easier adoption.</div>
+        </div>
+        <div class="roadmap-item">
+          <div class="ri-title">Dashboard analytics</div>
+          <div class="ri-why">Call outcome breakdown, lead conversion rate, peak call times.</div>
+        </div>
+        <div class="roadmap-item">
+          <div class="ri-title">Conversation insights</div>
+          <div class="ri-why">Auto-tag calls: "hot lead", "just browsing", "spam". Help agents prioritize.</div>
+        </div>
+        <div class="roadmap-item">
+          <div class="ri-title">Self-serve signup polish</div>
+          <div class="ri-why">Fix all broken tabs so agents can onboard without your help.</div>
+        </div>
+      </div>
+    </div>
+    <div class="roadmap-col">
+      <div class="roadmap-col-header col-later">🔮 LATER — Month 2+</div>
+      <div class="roadmap-items">
+        <div class="roadmap-item">
+          <div class="ri-title">WhatsApp integration (Pro add-on)</div>
+          <div class="ri-why">Start Meta Business verification now. WhatsApp lead alerts + auto-replies. Premium feature.</div>
+        </div>
+        <div class="roadmap-item">
+          <div class="ri-title">Outbound follow-up calls</div>
+          <div class="ri-why">AI calls back leads who didn't convert. Bolna supports outbound already.</div>
+        </div>
+        <div class="roadmap-item">
+          <div class="ri-title">Multi-language expansion</div>
+          <div class="ri-why">Marathi, Tamil, Telugu — regional language support for Tier 2 cities.</div>
+        </div>
+        <div class="roadmap-item">
+          <div class="ri-title">Agent mobile app</div>
+          <div class="ri-why">Push notifications on leads, quick callback from app, dashboard on phone.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ TECH STACK ═══════════ -->
+  <div class="section-title">🛠️ Tech Stack</div>
+  <div class="stack-row">
+    <div class="stack-chip"><span class="chip-icon">⚡</span><span class="chip-label">FastAPI</span><span class="chip-role">Backend</span></div>
+    <div class="stack-chip"><span class="chip-icon">🗄️</span><span class="chip-label">Supabase</span><span class="chip-role">Database</span></div>
+    <div class="stack-chip"><span class="chip-icon">🤖</span><span class="chip-label">Bolna.ai</span><span class="chip-role">Voice AI</span></div>
+    <div class="stack-chip"><span class="chip-icon">📡</span><span class="chip-label">Vobiz</span><span class="chip-role">Telephony</span></div>
+    <div class="stack-chip"><span class="chip-icon">💰</span><span class="chip-label">Razorpay</span><span class="chip-role">Payments</span></div>
+    <div class="stack-chip"><span class="chip-icon">🧠</span><span class="chip-label">Claude / GPT-4o</span><span class="chip-role">Chat LLM</span></div>
+    <div class="stack-chip"><span class="chip-icon">📅</span><span class="chip-label">Google Calendar</span><span class="chip-role">Scheduling</span></div>
+    <div class="stack-chip"><span class="chip-icon">🚀</span><span class="chip-label">Render</span><span class="chip-role">Hosting</span></div>
+    <div class="stack-chip"><span class="chip-icon">📧</span><span class="chip-label">Gmail SMTP</span><span class="chip-role">Alerts</span></div>
+  </div>
+
+</div>
+</body>
+</html>

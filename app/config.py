@@ -12,10 +12,16 @@ class Settings(BaseSettings):
     # Vapi.ai (fallback)
     VAPI_API_KEY: str = ""
 
-    # LLM for chat widget: "openai" or "anthropic"
+    # LLM for chat widget: "openai" or "anthropic" or "gemini"
     LLM_PROVIDER: str = "openai"
     OPENAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
+
+    # Hybrid Voice Providers (AWS + ElevenLabs)
+    AWS_REGION: str = "us-east-1"
+    ELEVENLABS_API_KEY: str = ""
+    ELEVENLABS_VOICE_ID: str = ""
 
     # Supabase
     SUPABASE_URL: str = ""
