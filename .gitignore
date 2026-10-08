@@ -37,3 +37,8 @@ htmlcov/
 # Claude Code
 .claude/
 test_call_transcript*.txt
+
+# Local logs
+logs.json
+temp_logs.txt
+*.log
