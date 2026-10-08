@@ -4,7 +4,7 @@
 - Solo founder, bootstrapped
 - Based in India
 - Building PropBot end-to-end: product, code, marketing, sales
-- Email: daanzack8@gmail.com
+- Email: admin@propbot.co.in
 - GitHub: wefluidmedia-prog
 
 ## The Origin

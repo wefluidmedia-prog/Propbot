@@ -5,8 +5,8 @@ FastAPI + Supabase (PostgreSQL) + Bolna.ai (voice) + Vobiz (telephony) + Claude 
 
 ## Environment
 - OS: Windows 11 with OneDrive active
-- Project is at `E:\Claude Code\properties` — this is NOT OneDrive-synced, safe to create/delete files freely
-- Always confirm working directory is `E:\Claude Code\properties` before running commands
+- Project is at `<LOCAL_PROJECT_PATH>` — this is NOT OneDrive-synced, safe to create/delete files freely
+- Always confirm working directory is `<LOCAL_PROJECT_PATH>` before running commands
 - Python 3.11+ is installed and on PATH
 
 ## Workflow Rules
@@ -33,8 +33,8 @@ FastAPI + Supabase (PostgreSQL) + Bolna.ai (voice) + Vobiz (telephony) + Claude 
 - Plan: Lightsail Container Nano ($7/mo, covered by $1000 AWS credits)
 - Region: ap-south-1 (Mumbai)
 - Live URL: https://propbot.co.in (custom domain, GoDaddy DNS)
-- Lightsail URL: https://propbot.s3dncr7k1n8ym.ap-south-1.cs.amazonlightsail.com/
-- Docker image: ECR 117237936168.dkr.ecr.ap-south-1.amazonaws.com/propbot:latest
+- Lightsail URL: <LIGHTSAIL_SERVICE_URL> (see AWS console; not committed)
+- Docker image: ECR <AWS_ACCOUNT_ID>.dkr.ecr.ap-south-1.amazonaws.com/propbot:latest
 - CodeBuild project: propbot-build (region ap-south-1)
 - Health check: `curl https://propbot.co.in/health`
 - Start command (in Dockerfile): `uvicorn app.main:app --host 0.0.0.0 --port 8080`
@@ -70,6 +70,6 @@ FastAPI + Supabase (PostgreSQL) + Bolna.ai (voice) + Vobiz (telephony) + Claude 
 - BASE_URL — set to https://propbot.co.in
 
 ## Supabase
-- Project ID: bnmilqrtxfxbzecydjda
+- Project ID: <SUPABASE_PROJECT_ID> (see local .env / Supabase dashboard; not committed)
 - Use MCP supabase tools for migrations and SQL queries
 - subscription_status values: trial | active | paused | cancelled | expired
