@@ -1,6 +1,6 @@
 # Fiverr Setup Packet — AI Voice Agents & Automation
 
-**For:** Percy Statham (percystatham@gmail.com)
+**For:** <YOUR_NAME> (<YOUR_EMAIL>)
 **Positioning:** Builder of AI voice agents and automation workflows, with PropBot (propbot.co.in) as flagship case study
 **Pricing tier:** Mid ($75–300 per gig)
 **Goal:** Live on Fiverr within ~60 minutes, ready to receive first orders.
@@ -12,7 +12,7 @@
 I cannot create the account for you — Fiverr requires phone + email + (sometimes) ID verification that only you can complete on your device. Follow these steps; every field you'll be asked is pre-written in Part 2 below.
 
 1. Go to **https://www.fiverr.com/join**
-2. Sign up with your Gmail (`percystatham@gmail.com`) — using Google SSO is fastest.
+2. Sign up with your Gmail (`<YOUR_EMAIL>`) — using Google SSO is fastest.
 3. **Choose a username.** Fiverr usernames are permanent and are your public URL. Pick one now:
    - Good: `percy_builds`, `percy_ai`, `percystatham`, `voiceagent_dev`, `propbot_builder`
    - Avoid numbers and underscores where possible; keep it 8–14 chars.

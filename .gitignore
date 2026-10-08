@@ -13,8 +13,16 @@ venv/
 .venv/
 env/
 
-# Environment variables
+# Environment variables / secrets
 .env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+credentials*.json
+client_secret*.json
+service-account*.json
 
 # IDE
 .vscode/
@@ -42,3 +50,10 @@ test_call_transcript*.txt
 logs.json
 temp_logs.txt
 *.log
+
+# Call data (never commit recordings/transcripts/lead exports)
+*.wav
+*.mp3
+recordings/
+transcripts/
+leads_export*.csv

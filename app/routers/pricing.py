@@ -229,7 +229,7 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:
 </div>
 
 <div class="footer-row">
-  <p>&copy; 2026 PropBot &mdash; <a href="/">Home</a> &middot; <a href="/dashboard">Dashboard</a> &middot; <a href="mailto:daanzack8@gmail.com">Contact</a></p>
+  <p>&copy; 2026 PropBot &mdash; <a href="/">Home</a> &middot; <a href="/dashboard">Dashboard</a> &middot; <a href="mailto:admin@propbot.co.in">Contact</a></p>
 </div>
 
 </body>
